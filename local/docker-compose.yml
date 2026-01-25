@@ -14,6 +14,7 @@ services:
     volumes:
       - ../backend/src:/app/src
       - ../backend/networks:/app/networks
+      - ../backend/data:/app/data
     restart: unless-stopped
     profiles:
       - dev
@@ -58,7 +59,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://backend:3001
+      # Use localhost since the browser runs on the host machine, not inside Docker
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
     volumes:
       - ../frontend/src:/app/src
       - ../frontend/app:/app/app

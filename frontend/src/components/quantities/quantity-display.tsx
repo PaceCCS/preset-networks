@@ -6,7 +6,7 @@ import { DimensionKey } from "@/lib/stores/unitPreferencesSlice";
 
 /** Common props shared by both variants */
 interface BaseProps {
-  /** The expression to display (e.g., "100 bar", "25 °C") */
+  /** The expression to display (e.g., "100 bar", "25 degC") */
   children: string;
   /** Number of decimal places for display (default: 3) */
   precision?: number;
@@ -14,7 +14,7 @@ interface BaseProps {
 
 /** Props when using an explicit unit */
 interface WithExplicitUnit extends BaseProps {
-  /** Explicit unit to convert to (e.g., "bar", "°C") */
+  /** Explicit unit to convert to (e.g., "bar", "degC") */
   unit: string;
   dimension?: never;
 }
@@ -30,11 +30,11 @@ type QuantityDisplayProps = WithExplicitUnit | WithDimension;
 
 /**
  * Display a quantity expression converted to a specified or preferred unit.
- * 
+ *
  * @example
  * // Explicit unit
  * <QuantityDisplay unit="bar">100 psi</QuantityDisplay>
- * 
+ *
  * // User's preferred unit for pressure
  * <QuantityDisplay dimension="pressure">100 psi</QuantityDisplay>
  */
@@ -47,7 +47,7 @@ export default function QuantityDisplay({
   // Get preferred unit if dimension is specified
   // We always call the hook to maintain consistent hook order
   const preferredUnit = usePreferredUnit(dimension ?? "pressure");
-  
+
   // Use explicit unit if provided, otherwise use preferred unit from dimension
   const targetUnit = explicitUnit ?? preferredUnit;
 

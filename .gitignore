@@ -11,3 +11,7 @@ pkg/
 
 # Local settings
 .claude/settings.local.json
+
+# Reference directories (for local reference only, not deployed)
+frontend/reference/
+backend/reference/

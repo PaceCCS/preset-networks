@@ -43,7 +43,7 @@ export type ModuleLookupResult = {
  * Resolves relative to process.cwd() which should be the backend directory.
  */
 function getLibraryDataPath(): string {
-  return resolve(process.cwd(), "reference/costing/data");
+  return resolve(process.cwd(), "data/costing");
 }
 
 /**

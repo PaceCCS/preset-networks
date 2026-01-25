@@ -1,27 +1,15 @@
 const DEFAULT_BACKEND_URL = "http://localhost:3001";
 
 export function getBackendUrl(): string {
-  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (typeof process !== "undefined" && process.env.VITE_API_URL) {
-    return process.env.VITE_API_URL;
-  }
-  if (typeof process !== "undefined" && process.env.BACKEND_URL) {
-    return process.env.BACKEND_URL;
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
   return DEFAULT_BACKEND_URL;
 }
 
 export function getApiBaseUrl(): string {
-  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (typeof process !== "undefined" && process.env.VITE_API_URL) {
-    return process.env.VITE_API_URL;
-  }
-  if (typeof process !== "undefined" && process.env.BACKEND_URL) {
-    return process.env.BACKEND_URL;
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
   return DEFAULT_BACKEND_URL;
 }

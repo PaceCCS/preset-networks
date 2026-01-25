@@ -1,5 +1,5 @@
-import type { FlowNode } from "@/src/lib/collections/flow-nodes";
-import type { NetworkNode } from "@/src/lib/api-client";
+import type { FlowNode } from "@/lib/collections/flow-nodes";
+import type { NetworkNode } from "@/lib/api-client";
 
 // ReactFlow UI properties to exclude from TOML
 const REACTFLOW_UI_PROPERTIES = [

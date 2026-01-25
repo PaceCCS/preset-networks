@@ -22,8 +22,10 @@ import {
   CommandList,
 } from "../ui/command";
 import { Popover, PopoverAnchor, PopoverContent } from "../ui/popover";
-import { DimensionKey, getDimensionConfig } from "@/lib/stores/unitPreferencesSlice";
-
+import {
+  DimensionKey,
+  getDimensionConfig,
+} from "@/lib/stores/unitPreferencesSlice";
 
 interface UnitSelectProps {
   id?: string;

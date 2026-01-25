@@ -17,12 +17,16 @@ COPY src ./src
 COPY pkg ./pkg
 COPY dim ./dim
 COPY networks ./networks
+COPY data ./data
 
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
 
 # Dev stage - hot reloading with tsx watch
 FROM base AS dev
+
+# Ensure tmp directory exists and is writable for tsx
+RUN mkdir -p /tmp/tsx-1001 && chown -R nodejs:nodejs /tmp/tsx-1001
 
 USER nodejs
 
