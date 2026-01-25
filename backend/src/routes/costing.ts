@@ -12,7 +12,6 @@ import {
   formatValidationErrors,
 } from "../services/costing/schemas";
 import type { CostEstimateResponse } from "../services/costing/types";
-import { resolveNetworkPath } from "../utils/network-path";
 
 export const costingRoutes = new Hono();
 
@@ -41,15 +40,10 @@ costingRoutes.post("/estimate", async (c) => {
       return c.json(formatValidationErrors(parseResult.left), 400);
     }
     const body = parseResult.right;
-    
-    // Resolve path if source is path-based
-    const source = body.source.type === "path" 
-      ? { type: "path" as const, path: resolveNetworkPath(body.source.path) }
-      : body.source;
     const currency = body.targetCurrency || "USD";
-    
+
     // Transform network to costing request
-    const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
+    const { request, assetMetadata } = await transformNetworkToCostingRequest(body.source, {
       libraryId: body.libraryId,
       assetDefaults: body.assetDefaults,
       assetOverrides: body.assetOverrides,
@@ -124,14 +118,9 @@ costingRoutes.post("/validate", async (c) => {
       return c.json(formatValidationErrors(parseResult.left), 400);
     }
     const body = parseResult.right;
-    
-    // Resolve path if source is path-based
-    const source = body.source.type === "path" 
-      ? { type: "path" as const, path: resolveNetworkPath(body.source.path) }
-      : body.source;
-    
+
     // Transform network (this validates blocks and maps to modules)
-    const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
+    const { request, assetMetadata } = await transformNetworkToCostingRequest(body.source, {
       libraryId: body.libraryId,
     });
     
