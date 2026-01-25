@@ -1,5 +1,5 @@
-# Single stage - tsx runs TypeScript directly
-FROM node:20-alpine
+# Base stage - shared setup
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files and install all dependencies (tsx is needed at runtime)
+# Copy package files and install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci && npm cache clean --force
 
@@ -21,19 +21,30 @@ COPY networks ./networks
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
 
-# Switch to non-root user
+# Dev stage - hot reloading with tsx watch
+FROM base AS dev
+
 USER nodejs
 
-# Expose the default port
 EXPOSE 3001
 
-# Set environment variables
+ENV NODE_ENV=development
+ENV PORT=3001
+
+# Use tsx watch for hot reloading
+CMD ["npx", "tsx", "watch", "src/index.ts"]
+
+# Production stage
+FROM base AS runner
+
+USER nodejs
+
+EXPOSE 3001
+
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Start the application with tsx
 CMD ["npx", "tsx", "src/index.ts"]

@@ -5,7 +5,29 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Stage 2: Build
+# Dev stage - hot reloading with next dev
+FROM node:20-alpine AS dev
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["npm", "run", "dev"]
+
+# Stage 2: Build (for production)
 FROM node:20-alpine AS builder
 WORKDIR /app
 

@@ -3,6 +3,26 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      target: dev
+    container_name: preset-networks-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - COSTING_SERVER_URL=${COSTING_SERVER_URL:-http://host.docker.internal:8080}
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/networks:/app/networks
+    restart: unless-stopped
+    profiles:
+      - dev
+
+  backend-prod:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: runner
     container_name: preset-networks-backend
     ports:
       - "3001:3001"
@@ -26,21 +46,42 @@ services:
       start_period: 5s
     restart: unless-stopped
     profiles:
-      - dev
       - prod
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      target: dev
+    container_name: preset-networks-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://backend:3001
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/app:/app/app
+      - ../frontend/public:/app/public
+    depends_on:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - dev
+
+  frontend-prod:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: runner
     container_name: preset-networks-frontend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://backend:3001
+      - NEXT_PUBLIC_API_URL=http://backend-prod:3001
     depends_on:
-      backend:
+      backend-prod:
         condition: service_healthy
     healthcheck:
       test:
@@ -58,7 +99,6 @@ services:
       start_period: 10s
     restart: unless-stopped
     profiles:
-      - dev
       - prod
 
 networks:
