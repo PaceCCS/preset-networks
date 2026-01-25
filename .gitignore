@@ -1,0 +1,13 @@
+node_modules/
+dist/
+pkg/
+*.log
+.env
+.env.*
+.DS_Store
+
+# Build artifacts
+*.tsbuildinfo
+
+# Local settings
+.claude/settings.local.json
