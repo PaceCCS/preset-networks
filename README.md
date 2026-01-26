@@ -98,7 +98,7 @@ type = "Pipe"
 length = "1000 m"
 ```
 
-The properties in these files are effectively defaults. We will use user inputs to override them.
+The properties in these files are effectively defaults. User inputs will override them.
 
 Units are parsed. You can write whatever you want. Default units will be defined in the schemas.
 
