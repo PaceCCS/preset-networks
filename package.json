@@ -1,5 +1,5 @@
 {
-  "name": "dagger",
+  "name": "preset-networks",
   "private": true,
   "workspaces": [
     "backend",

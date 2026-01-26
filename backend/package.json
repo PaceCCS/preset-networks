@@ -1,8 +1,8 @@
 {
-  "name": "dagger-backend",
+  "name": "preset-networks-backend",
   "version": "0.1.0",
   "type": "module",
-  "description": "Hono API server for Dagger network inspection",
+  "description": "Hono API server for Preset Networks",
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",

@@ -44,15 +44,13 @@ The server will start on `http://localhost:3000` by default.
 
 This compiles the Rust code in `../cli` to WebAssembly and outputs it to `./pkg`.
 
+### Operations API
+
+I'll docment this later.
+
 ## Networks Directory
 
-Networks are stored in `backend/networks/`. You can:
-
-- Copy networks from the project root: `cp -r ../network/preset1 ./networks/`
-- Create symlinks: `ln -s ../network/preset1 ./networks/preset1`
-- Create new networks directly in `networks/`
-
-The API uses network names (e.g., `preset1`) which map to `networks/preset1/`.
+Networks are stored in `backend/networks/`. The API uses network names (e.g., `preset1`) which map to `networks/preset1/`.
 
 ## Environment Variables
 
