@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useLiveQuery } from "@tanstack/react-db";
 import { FlowNetwork } from "@/components/flow/flow-network";
 import {
   loadPresetFromApi,
+  resetFlowToNetwork,
   nodesCollection,
   edgesCollection,
   sortNodesWithParentsFirst,
+  isNetworkLoaded,
 } from "@/lib/collections/flow";
 import { networkQueryOptions } from "@/lib/api-client";
 import { NetworkProvider } from "@/contexts/network-context";
@@ -21,11 +23,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { OperationsList } from "@/components/operations";
+import { Button } from "@/components/ui/button";
+import { RotateCcwIcon } from "lucide-react";
 
 export default function NetworkPage() {
   const params = useParams();
   const networkId = params.networkId as string;
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadAttempted, setLoadAttempted] = useState(false);
 
   // Fetch network data
   const {
@@ -34,12 +38,20 @@ export default function NetworkPage() {
     error,
   } = useQuery(networkQueryOptions(networkId));
 
-  // Load network into collections when data arrives
+  // Load network into collections when data arrives (only if not already loaded)
   useEffect(() => {
-    if (network && !isLoaded) {
-      loadPresetFromApi(network).then(() => setIsLoaded(true));
+    if (network && !loadAttempted) {
+      // loadPresetFromApi will skip if this network is already loaded
+      loadPresetFromApi(network).then(() => setLoadAttempted(true));
     }
-  }, [network, isLoaded]);
+  }, [network, loadAttempted]);
+
+  // Reset to reload the network, discarding user changes
+  const handleReset = useCallback(() => {
+    if (network) {
+      resetFlowToNetwork(network, networkId);
+    }
+  }, [network, networkId]);
 
   // Live query the collections
   const { data: nodesRaw = [] } = useLiveQuery(nodesCollection);
@@ -80,6 +92,15 @@ export default function NetworkPage() {
         <div className="p-4 border-b border-brand-grey-3 flex items-center justify-between">
           <h1 className="text-3xl">{network.label}</h1>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              title="Reset to preset (discard changes)"
+            >
+              <RotateCcwIcon className="h-4 w-4 mr-1" />
+              Reset
+            </Button>
             <SidebarTrigger />
           </div>
         </div>

@@ -21,6 +21,9 @@ import type {
 
 /**
  * Run a costing estimate for a network.
+ * The request.source can be either:
+ * - { type: "data", network: { groups, branches } } for in-memory data
+ * - { type: "networkId", networkId: "preset1" } to load from files
  */
 export async function runCostingEstimate(
   request: CostingEstimateRequest
@@ -47,7 +50,7 @@ export async function runCostingEstimate(
 
 /**
  * Create a NetworkSource from a network ID.
- * Note: Path sources were removed - only networkId is supported.
+ * @deprecated Use getNetworkSourceFromCollections() from flow.ts for user-modified data
  */
 export function createNetworkSource(networkId: string): NetworkSource {
   return { type: "networkId", networkId };
@@ -55,14 +58,13 @@ export function createNetworkSource(networkId: string): NetworkSource {
 
 /**
  * Validate a network for costing readiness.
- * Accepts either a filesystem path or a network ID.
+ * Accepts a NetworkSource (either inline data or networkId reference).
  */
-export async function validateCostingNetwork(
-  networkPathOrId: string,
+export async function validateCostingNetworkWithSource(
+  source: NetworkSource,
   libraryId: string
 ): Promise<OperationValidation> {
   const baseUrl = getApiBaseUrl();
-  const source = createNetworkSource(networkPathOrId);
 
   const response = await fetch(`${baseUrl}/api/operations/costing/validate`, {
     method: "POST",
@@ -81,6 +83,18 @@ export async function validateCostingNetwork(
   }
 
   return response.json();
+}
+
+/**
+ * Validate a network for costing readiness (legacy - uses networkId).
+ * @deprecated Use validateCostingNetworkWithSource with getNetworkSourceFromCollections()
+ */
+export async function validateCostingNetwork(
+  networkPathOrId: string,
+  libraryId: string
+): Promise<OperationValidation> {
+  const source = createNetworkSource(networkPathOrId);
+  return validateCostingNetworkWithSource(source, libraryId);
 }
 
 /**
@@ -240,9 +254,28 @@ export function costingHealthQueryOptions() {
 // ============================================================================
 
 /**
+ * Create a costing estimate request with a NetworkSource.
+ * Use getNetworkSourceFromCollections() from flow.ts to get the source with user modifications.
+ */
+export function createCostingRequestWithSource(options: {
+  source: NetworkSource;
+  libraryId: string;
+  targetCurrency?: string;
+  assetDefaults?: AssetPropertyOverrides;
+  assetOverrides?: Record<string, AssetPropertyOverrides>;
+}): CostingEstimateRequest {
+  return {
+    source: options.source,
+    libraryId: options.libraryId,
+    targetCurrency: options.targetCurrency,
+    assetDefaults: options.assetDefaults,
+    assetOverrides: options.assetOverrides,
+  };
+}
+
+/**
  * Create a costing estimate request.
- * Helper to construct the request with proper types.
- * Accepts either a filesystem path or a network ID.
+ * @deprecated Use createCostingRequestWithSource with getNetworkSourceFromCollections()
  */
 export function createCostingRequest(options: {
   networkPathOrId: string;

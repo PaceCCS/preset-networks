@@ -8,6 +8,10 @@ import {
 } from "@tanstack/react-db";
 import type { FlowNode, FlowEdge } from "./flow-nodes";
 import { getNetwork, type NetworkResponse } from "@/lib/api-client";
+import type { NetworkSource, NetworkData } from "@/lib/operations/types";
+
+// Storage key for tracking which network is currently loaded
+const LOADED_NETWORK_KEY = "flow:loadedNetworkId";
 
 /**
  * Get z-index for node layering.
@@ -112,7 +116,36 @@ export const findEdgesByTarget = (targetId: string) =>
     })
   );
 
-// Removed seedFlowCollections - no longer needed after removing hardcoded presets
+// ---------------------------------------------------------------------------
+// Network tracking helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the ID of the currently loaded network
+ */
+export function getLoadedNetworkId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LOADED_NETWORK_KEY);
+}
+
+/**
+ * Set the ID of the currently loaded network
+ */
+function setLoadedNetworkId(networkId: string | null): void {
+  if (typeof window === "undefined") return;
+  if (networkId) {
+    localStorage.setItem(LOADED_NETWORK_KEY, networkId);
+  } else {
+    localStorage.removeItem(LOADED_NETWORK_KEY);
+  }
+}
+
+/**
+ * Check if a specific network is already loaded in collections
+ */
+export function isNetworkLoaded(networkId: string): boolean {
+  return getLoadedNetworkId() === networkId;
+}
 
 /**
  * Clear all data from flow collections
@@ -132,15 +165,22 @@ export async function clearFlowCollections(): Promise<void> {
     const delTx = nodesCollection.delete(nodeKeys);
     await delTx.isPersisted.promise;
   }
+
+  // Clear the loaded network tracker
+  setLoadedNetworkId(null);
 }
 
 /**
  * Reset collections to a network response from the API
- * This is a helper that can be used if you already have a NetworkResponse
- * Otherwise, use loadPresetFromApi() which fetches and loads
+ * This ALWAYS clears and reloads, discarding any user changes.
+ * Use loadPresetFromApi() for normal loading which skips if already loaded.
+ *
+ * @param network - The network response from API
+ * @param networkId - The network ID to track as loaded
  */
 export async function resetFlowToNetwork(
-  network: NetworkResponse
+  network: NetworkResponse,
+  networkId?: string
 ): Promise<void> {
   await Promise.all([nodesCollection.preload(), edgesCollection.preload()]);
 
@@ -193,16 +233,30 @@ export async function resetFlowToNetwork(
     insNodesTx.isPersisted.promise,
     insEdgesTx.isPersisted.promise,
   ]);
+
+  // Track which network is loaded
+  setLoadedNetworkId(networkId ?? network.id);
 }
 
 /**
- * Load a network into collections
+ * Load a network into collections (if not already loaded)
  * Adds ReactFlow UI properties and validates edges
+ * Skips loading if the same network is already in collections.
+ *
  * @param networkOrId - NetworkResponse from API (or networkId to fetch)
+ * @param forceReload - If true, always reload even if already loaded
  */
 export async function loadPresetFromApi(
-  networkOrId: string | NetworkResponse
+  networkOrId: string | NetworkResponse,
+  forceReload = false
 ): Promise<void> {
+  const networkId = typeof networkOrId === "string" ? networkOrId : networkOrId.id;
+
+  // Skip if this network is already loaded (unless force reload)
+  if (!forceReload && isNetworkLoaded(networkId)) {
+    return;
+  }
+
   // Get network data (either use provided or fetch)
   const network =
     typeof networkOrId === "string"
@@ -210,7 +264,7 @@ export async function loadPresetFromApi(
       : networkOrId;
 
   // Use resetFlowToNetwork to handle the transformation and insertion
-  await resetFlowToNetwork(network);
+  await resetFlowToNetwork(network, networkId);
 }
 
 // ---------------------------------------------------------------------------
@@ -261,4 +315,76 @@ export function writeEdgesToCollection(updated: FlowEdge[]): void {
       edgesCollection.insert(edge);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Convert collection data to NetworkSource for operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Get a NetworkSource from the current collection state.
+ * This returns the in-memory network data that can be sent to operations,
+ * including any user modifications.
+ */
+export async function getNetworkSourceFromCollections(): Promise<NetworkSource> {
+  await Promise.all([nodesCollection.preload(), edgesCollection.preload()]);
+
+  const nodes = Array.from(nodesCollection.values()) as FlowNode[];
+  const edges = Array.from(edgesCollection.values()) as FlowEdge[];
+
+  // Build groups and branches from the nodes
+  const groups: NetworkData["groups"] = [];
+  const branches: NetworkData["branches"] = [];
+
+  // First, identify all groups (type is "labeledGroup" in our schema)
+  const groupNodes = nodes.filter((n) => n.type === "labeledGroup");
+
+  // Build branch objects from branch nodes
+  const branchNodes = nodes.filter((n) => n.type === "branch");
+
+  for (const groupNode of groupNodes) {
+    // Find branches that belong to this group (parentId matches group id)
+    const groupBranchIds = branchNodes
+      .filter((b) => b.parentId === groupNode.id)
+      .map((b) => b.id);
+
+    groups.push({
+      id: groupNode.id,
+      label: groupNode.data?.label ?? undefined,
+      branchIds: groupBranchIds,
+    });
+  }
+
+  for (const branchNode of branchNodes) {
+    branches.push({
+      id: branchNode.id,
+      label: branchNode.data?.label ?? undefined,
+      parentId: branchNode.parentId,
+      blocks: branchNode.data?.blocks ?? [],
+    });
+  }
+
+  return {
+    type: "data",
+    network: { groups, branches },
+  };
+}
+
+/**
+ * Create a NetworkSource - either from collections (if forceData is true or
+ * networkId is undefined) or as a networkId reference.
+ *
+ * For operations that need the user's in-memory modifications, use forceData=true.
+ */
+export async function createNetworkSourceForOperation(
+  networkId?: string,
+  forceData = true
+): Promise<NetworkSource> {
+  // If we want to use the in-memory data (with user modifications)
+  if (forceData || !networkId) {
+    return getNetworkSourceFromCollections();
+  }
+
+  // Otherwise, reference the network by ID (backend will load from files)
+  return { type: "networkId", networkId };
 }

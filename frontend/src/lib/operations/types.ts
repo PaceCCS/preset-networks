@@ -147,10 +147,47 @@ export type AssetPropertyOverrides = {
 };
 
 /**
- * Network source - a network ID (preset).
- * Note: Path sources were removed - only networkId is supported.
+ * Block data for network operations.
  */
-export type NetworkSource = { type: "networkId"; networkId: string };
+export type NetworkBlock = {
+  type: string;
+  quantity?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Branch data for network operations.
+ */
+export type NetworkBranch = {
+  id: string;
+  label?: string;
+  parentId?: string;
+  blocks: NetworkBlock[];
+};
+
+/**
+ * Group data for network operations.
+ */
+export type NetworkGroup = {
+  id: string;
+  label?: string;
+  branchIds: string[];
+};
+
+/**
+ * Network data structure for inline operations.
+ */
+export type NetworkData = {
+  groups: NetworkGroup[];
+  branches: NetworkBranch[];
+};
+
+/**
+ * Network source - either inline data or a network ID reference.
+ */
+export type NetworkSource =
+  | { type: "networkId"; networkId: string }
+  | { type: "data"; network: NetworkData };
 
 /**
  * Request body for costing estimate.
