@@ -100,7 +100,7 @@ length = "1000 m"
 
 The properties in these files are effectively defaults. User inputs will override them.
 
-Units are parsed. You can write whatever you want. Default units will be defined in the schemas.
+Units are parsed. [You can write almost whatever you want](https://github.com/Jerell/dim/tree/main/src/registry). Default units will be defined in the schemas.
 
 Networks can also have image nodes, which need a position, path, width, height and label.
 
