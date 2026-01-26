@@ -40,6 +40,70 @@ cd local; docker compose --profile dev down && docker compose --profile prod dow
 
 Presets are defined in backend/networks in their own directories. They must be added to `AVAILABLE_NETWORKS` in backend/src/routes/network.ts to be exposed via the API.
 
+```
+network-name/
+├── config.toml          # Global configuration
+├── group-1.toml         # Group definitions
+├── branch-1.toml        # Branch definitions
+├── branch-2.toml
+└── ...
+```
+
+### Scope Hierarchy
+
+Properties defined at outer scopes are accessible to inner scopes:
+
+```
+Global (config.toml)
+  └─> Group (group-*.toml)
+       └─> Branch (branch-*.toml)
+            └─> Block (within branch)
+```
+
+The file names are used as IDs for nodes in the graph. They do not need to say "group-" or "branch-" to be a group or a branch.
+
+### Example Network
+
+**config.toml** (Global scope):
+
+```toml
+[properties]
+ambientTemperature = "20.0 C"
+pressure = 14.7
+
+[inheritance]
+general = ["block", "branch", "group", "global"]
+
+[unitPreferences.Pipe]
+length = "km"
+```
+
+**branch-1.toml** (Branch scope):
+
+```toml
+type = "branch"
+label = "Branch 1"
+parentId = "group-1"
+
+[position]
+x = 20
+y = 30
+
+[[block]]
+type = "Source"
+pressure = "100 bar"
+
+[[block]]
+type = "Pipe"
+length = "1000 m"
+```
+
+Units are parsed. You can write whatever you want. Default units will be defined in the schemas.
+
+Networks can also have image nodes, which need a position, path, width, height and label.
+
+Geographic nodes are not yet implemented. The plan is for Geographic Anchors to set the anchor coordinates and scale and the Geographic Window to provide a separate window view of the map that may be disconnected from the anchor.
+
 ## Operations
 
 Operations are the things you can do with a network description. The operation registry lists each available operation along with things like the schema for input data and the endpoint to call to perform the calculation or validate the inputs.
