@@ -98,6 +98,8 @@ type = "Pipe"
 length = "1000 m"
 ```
 
+The properties in these files are effectively defaults. We will use user inputs to override them.
+
 Units are parsed. You can write whatever you want. Default units will be defined in the schemas.
 
 Networks can also have image nodes, which need a position, path, width, height and label.
