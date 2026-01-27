@@ -23,7 +23,7 @@ just dev
 
 # or
 
-cd local; docker compose --profile dev up -d
+cd local; docker compose --profile dev up -d --build
 ```
 
 ### Stop containers

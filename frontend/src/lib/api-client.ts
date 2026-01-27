@@ -34,7 +34,8 @@ export type BranchNodeData = {
   id: string;
   label: string;
   blocks: Block[];
-};
+  // Branch-level properties that can be inherited by blocks (e.g., length, diameter)
+} & { [key: string]: string | number | boolean | null | undefined };
 
 export type GroupNodeData = {
   id: string;
@@ -146,7 +147,7 @@ export async function getNetwork(networkId: string): Promise<NetworkResponse> {
       throw new Error(
         error.message ||
           error.error ||
-          `Request failed with status ${response.status}`
+          `Request failed with status ${response.status}`,
       );
     }
 
@@ -155,7 +156,7 @@ export async function getNetwork(networkId: string): Promise<NetworkResponse> {
     // Check if it's a network/connection error
     if (error instanceof TypeError && error.message.includes("fetch")) {
       throw new Error(
-        "Backend server is not running. Please ensure the backend server is started."
+        "Backend server is not running. Please ensure the backend server is started.",
       );
     }
     throw error;
@@ -178,7 +179,7 @@ export async function getNetworkNodes(networkId: string, nodeType?: string) {
     throw new Error(
       error.message ||
         error.error ||
-        `Request failed with status ${response.status}`
+        `Request failed with status ${response.status}`,
     );
   }
 
@@ -188,7 +189,7 @@ export async function getNetworkNodes(networkId: string, nodeType?: string) {
 export async function getNetworkEdges(
   networkId: string,
   source?: string,
-  target?: string
+  target?: string,
 ) {
   const client = getClient();
   // @ts-expect-error - TypeScript limitation with bundler mode in monorepos
@@ -209,7 +210,7 @@ export async function getNetworkEdges(
     throw new Error(
       error.message ||
         error.error ||
-        `Request failed with status ${response.status}`
+        `Request failed with status ${response.status}`,
     );
   }
 
@@ -232,7 +233,7 @@ export function networkQueryOptions(networkId: string) {
  * @param networkIdentifier Either a preset name (e.g., "preset1") or an absolute path to directory containing TOML files
  */
 export async function getNetworkFromPath(
-  networkIdentifier: string
+  networkIdentifier: string,
 ): Promise<NetworkResponse> {
   // The unified API now accepts absolute paths via the network parameter
   return getNetwork(networkIdentifier);
@@ -253,7 +254,7 @@ export async function getAvailablePresets(): Promise<
     throw new Error(
       error.message ||
         error.error ||
-        `Request failed with status ${response.status}`
+        `Request failed with status ${response.status}`,
     );
   }
 

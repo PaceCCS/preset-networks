@@ -13,11 +13,9 @@ export const networkRoutes = new Hono();
 /**
  * Define available networks
  * This is the source of truth for which networks are available via the API
+ * Labels are defined in each network's config.toml
  */
-const AVAILABLE_NETWORKS = [
-  { id: "preset1", label: "Preset 1" },
-  // Add more networks here as they become available
-] as const;
+const AVAILABLE_NETWORKS = ["preset1", "simple-snapshot"] as const;
 
 /**
  * GET /api/network
@@ -39,7 +37,7 @@ networkRoutes.get("/", async (c) => {
         error: "Failed to load network",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -56,7 +54,7 @@ networkRoutes.get("/nodes", async (c) => {
   const networkIdentifier = c.req.query("network");
   console.log(
     "[network/nodes] Raw network identifier:",
-    JSON.stringify(networkIdentifier)
+    JSON.stringify(networkIdentifier),
   );
   const networkPath = resolveNetworkPath(networkIdentifier);
   console.log("[network/nodes] Resolved path:", networkPath);
@@ -71,7 +69,7 @@ networkRoutes.get("/nodes", async (c) => {
         error: "Failed to load nodes",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -100,7 +98,7 @@ networkRoutes.get("/edges", async (c) => {
         error: "Failed to load edges",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -111,21 +109,19 @@ networkRoutes.get("/edges", async (c) => {
  * Returns the list of networks defined in AVAILABLE_NETWORKS
  */
 networkRoutes.get("/list", async (c) => {
-  // Optionally, we can enrich the list with labels from actual network files
   const networks = await Promise.all(
-    AVAILABLE_NETWORKS.map(async (network) => {
+    AVAILABLE_NETWORKS.map(async (networkId) => {
       try {
-        // Try to load the network to get its actual label
-        const networkData = await loadNetwork(`networks/${network.id}`);
+        const networkData = await loadNetwork(`networks/${networkId}`);
         return {
-          id: network.id,
-          label: networkData.label || network.label,
+          id: networkId,
+          label: networkData.label || networkId,
         };
       } catch (error) {
-        // If network can't be loaded, use the configured label
-        return network;
+        // If network can't be loaded, use the ID as the label
+        return { id: networkId, label: networkId };
       }
-    })
+    }),
   );
 
   return c.json(networks);
@@ -163,7 +159,10 @@ networkRoutes.get("/assets/*", async (c) => {
 
   // Get the asset path from the URL (everything after /assets/)
   const url = new URL(c.req.url);
-  const assetRelativePath = url.pathname.replace(/^\/api\/network\/assets\//, "");
+  const assetRelativePath = url.pathname.replace(
+    /^\/api\/network\/assets\//,
+    "",
+  );
 
   if (!assetRelativePath) {
     return c.json({ error: "Asset path is required" }, 400);
@@ -216,7 +215,7 @@ networkRoutes.get("/assets/*", async (c) => {
         error: "Failed to load asset",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });

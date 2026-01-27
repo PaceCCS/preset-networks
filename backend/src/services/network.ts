@@ -57,7 +57,13 @@ export async function loadNetwork(networkPath: string): Promise<any> {
     filesJson,
     configContent || undefined
   );
-  return JSON.parse(result);
+  const network = JSON.parse(result);
+
+  // Derive network ID from path (last directory segment)
+  const networkId = networkPath.split("/").pop() || "unknown";
+  network.id = networkId;
+
+  return network;
 }
 
 export async function getNetworkNodes(

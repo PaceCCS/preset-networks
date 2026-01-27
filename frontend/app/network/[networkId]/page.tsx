@@ -11,7 +11,6 @@ import {
   nodesCollection,
   edgesCollection,
   sortNodesWithParentsFirst,
-  isNetworkLoaded,
 } from "@/lib/collections/flow";
 import { networkQueryOptions } from "@/lib/api-client";
 import { NetworkProvider } from "@/contexts/network-context";
@@ -60,6 +59,7 @@ export default function NetworkPage() {
   // Sort nodes so parents come before children (ReactFlow requirement)
   const nodes = useMemo(() => sortNodesWithParentsFirst(nodesRaw), [nodesRaw]);
 
+  // Show loading until mounted on client (useLiveQuery requires client-side rendering)
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">

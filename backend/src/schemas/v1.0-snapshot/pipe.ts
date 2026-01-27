@@ -9,37 +9,32 @@ export const PipeSchema = Schema.Struct({
       dimension: "length",
       defaultUnit: "m",
       title: "Length",
-    })
+    }),
   ),
 
-  // Optional properties
   diameter: Schema.Number.pipe(
     Schema.greaterThan(0),
     Schema.annotations({
       dimension: "length",
       defaultUnit: "m",
       title: "Diameter",
-    })
+    }),
   ),
-  uValue: Schema.optional(
-    Schema.Number.pipe(
-      Schema.greaterThan(0),
-      Schema.annotations({
-        dimension: "uValue",
-        defaultUnit: "W/m²K",
-        title: "U-Value",
-      })
-    )
+  uValue: Schema.Number.pipe(
+    Schema.greaterThan(0),
+    Schema.annotations({
+      dimension: "uValue",
+      defaultUnit: "W/m²K",
+      title: "U-Value",
+    }),
   ),
-  ambientTemperature: Schema.optional(
-    Schema.Number.pipe(
-      Schema.greaterThan(0),
-      Schema.annotations({
-        dimension: "temperature",
-        defaultUnit: "°C",
-        title: "Ambient Temperature",
-      })
-    )
+  ambientTemperature: Schema.Number.pipe(
+    Schema.greaterThan(0),
+    Schema.annotations({
+      dimension: "temperature",
+      defaultUnit: "°C",
+      title: "Ambient Temperature",
+    }),
   ),
 });
 

@@ -15,21 +15,22 @@ export const OPERATIONS: Operation[] = [
   {
     id: "costing",
     name: "Cost Estimation",
-    description: "Estimate CAPEX and OPEX for the network using cost library modules",
+    description:
+      "Estimate CAPEX and OPEX for the network using cost library modules",
     schemaVersion: "v1.0-costing",
     endpoint: "/api/operations/costing/estimate",
     validateEndpoint: "/api/operations/costing/validate",
     healthEndpoint: "/api/operations/costing/health",
   },
-  // Future operations can be added here:
-  // {
-  //   id: "modelling",
-  //   name: "Network Modelling",
-  //   description: "Run flow and pressure modelling on the network",
-  //   schemaVersion: "v1.0-modelling",
-  //   endpoint: "/api/operations/modelling/run",
-  //   validateEndpoint: "/api/operations/modelling/validate",
-  // },
+  {
+    id: "snapshot",
+    name: "Snapshot",
+    description: "Run a snapshot using the Scenario Modeller",
+    schemaVersion: "v1.0-snapshot",
+    endpoint: "/api/operations/snapshot/run",
+    validateEndpoint: "/api/operations/snapshot/run", // No separate validation for snapshot
+    healthEndpoint: "/api/operations/snapshot/health",
+  },
 ];
 
 /**

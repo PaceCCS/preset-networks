@@ -371,8 +371,176 @@ export type CostLibraryType = {
 
 export type HealthStatus = {
   status: "ok" | "degraded" | "error";
-  costingServer: string;
+  costingServer?: string;
+  snapshotServer?: string;
   serverStatus: "reachable" | "unhealthy" | "unreachable";
   statusCode?: number;
   message?: string;
+};
+
+// ============================================================================
+// Snapshot Types
+// ============================================================================
+
+/**
+ * Unit value wrapper - a value with its unit specified.
+ * e.g., { "bara": 35 } or { "celsius": 55 } or { "mtpa": 1.7 }
+ */
+export type UnitValue = {
+  [unit: string]: number | boolean;
+};
+
+/**
+ * Conditions are a flat map of pipe-separated keys to unit values.
+ * Key format: "componentType|componentId|property"
+ */
+export type SnapshotConditions = Record<string, UnitValue>;
+
+/**
+ * Request body for snapshot run.
+ */
+export type SnapshotRequest =
+  | {
+      type: "direct";
+      conditions: SnapshotConditions;
+      includeAllPipes?: boolean;
+    }
+  | {
+      type: "network";
+      networkId: string;
+      conditionOverrides?: SnapshotConditions;
+      includeAllPipes?: boolean;
+    };
+
+/**
+ * Fluid properties at a point in the network.
+ */
+export type FluidProperties = {
+  pressure?: {
+    pascal: number;
+    bara: number;
+    psi: number;
+    barg: number;
+    psf: number;
+  };
+  temperature?: {
+    kelvin: number;
+    celsius: number;
+  };
+  flowrate?: {
+    kgps: number;
+    mtpa: number;
+    kgPerDay: number;
+    tonnePerHour: number;
+  };
+  density?: {
+    kgPerM3: number;
+    lbPerFt3: number;
+  };
+  viscosity?: {
+    pascalSecond: number;
+  };
+  vapourFraction?: {
+    scalar: number;
+  };
+  composition?: Record<string, { molFraction: number; molPercent: number }>;
+};
+
+/**
+ * Component result in the response.
+ */
+export type SnapshotComponentResult = {
+  id: string;
+  type: string;
+  enabled?: boolean;
+  inlet?: FluidProperties;
+  outlet?: FluidProperties;
+  workDone?: {
+    watts: number;
+    kiloWatts: number;
+    joulesPerSecond: number;
+  };
+  duty?: {
+    watts: number;
+    kiloWatts: number;
+    joulesPerSecond: number;
+  };
+};
+
+/**
+ * Thresholds from the response.
+ */
+export type SnapshotThresholds = {
+  maxWaterContentInPipeline?: { molFraction: number; molPercent: number };
+  minTemperatureInPipeline?: { kelvin: number; celsius: number };
+  maxPressureInOffshorePipeline?: { pascal: number; bara: number };
+  maxPressureInOnshore?: { pascal: number; bara: number };
+  temperatureInWell?: { kelvin: number; celsius: number };
+  corrosionPotential?: 0 | 1 | 2;
+};
+
+/**
+ * Response from the snapshot run endpoint.
+ */
+export type SnapshotResponse = {
+  success: boolean;
+  components: SnapshotComponentResult[];
+  thresholds?: SnapshotThresholds;
+  metadata?: Record<string, unknown>;
+  report?: string;
+  error?: {
+    type?: string;
+    message?: string;
+    severity?: string;
+    errorCode?: string;
+  };
+  validation?: SnapshotValidation;
+};
+
+// ============================================================================
+// Snapshot Validation Types
+// ============================================================================
+
+/**
+ * Status of an extracted condition.
+ */
+export type ConditionStatus = "extracted" | "missing" | "default";
+
+/**
+ * A single extracted condition with validation metadata.
+ */
+export type ExtractedCondition = {
+  key: string;
+  value: UnitValue | null;
+  status: ConditionStatus;
+  property: string;
+  unit: string;
+  sourceBlockId?: string;
+};
+
+/**
+ * Validation result for a single component.
+ */
+export type SnapshotComponentValidation = {
+  componentType: string;
+  componentId: string;
+  label?: string;
+  sourceBlockId: string;
+  conditions: ExtractedCondition[];
+  extractedCount: number;
+  missingCount: number;
+};
+
+/**
+ * Overall snapshot validation result.
+ */
+export type SnapshotValidation = {
+  isReady: boolean;
+  summary: {
+    componentCount: number;
+    totalConditions: number;
+    extractedConditions: number;
+    missingConditions: number;
+  };
+  components: SnapshotComponentValidation[];
 };

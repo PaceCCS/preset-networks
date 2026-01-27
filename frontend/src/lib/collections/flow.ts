@@ -7,6 +7,7 @@ import {
   localStorageCollectionOptions,
 } from "@tanstack/react-db";
 import type { FlowNode, FlowEdge } from "./flow-nodes";
+import { isBranchNode, isLabeledGroupNode } from "./flow-nodes";
 import { getNetwork, type NetworkResponse } from "@/lib/api-client";
 import type { NetworkSource, NetworkData } from "@/lib/operations/types";
 
@@ -337,10 +338,12 @@ export async function getNetworkSourceFromCollections(): Promise<NetworkSource> 
   const branches: NetworkData["branches"] = [];
 
   // First, identify all groups (type is "labeledGroup" in our schema)
-  const groupNodes = nodes.filter((n) => n.type === "labeledGroup");
+  // Using type predicates to properly narrow the type
+  const groupNodes = nodes.filter(isLabeledGroupNode);
 
   // Build branch objects from branch nodes
-  const branchNodes = nodes.filter((n) => n.type === "branch");
+  // Using type predicates to properly narrow the type (data.blocks is now available)
+  const branchNodes = nodes.filter(isBranchNode);
 
   for (const groupNode of groupNodes) {
     // Find branches that belong to this group (parentId matches group id)
@@ -356,11 +359,17 @@ export async function getNetworkSourceFromCollections(): Promise<NetworkSource> 
   }
 
   for (const branchNode of branchNodes) {
+    // Include all branch data (for property inheritance) plus standard fields
+    // The data object may contain branch-level properties like length, diameter, etc.
+    const { blocks = [], id: _dataId, label: _dataLabel, ...branchData } =
+      (branchNode.data ?? {}) as Record<string, unknown>;
+
     branches.push({
+      ...branchData, // Branch-level properties for inheritance
       id: branchNode.id,
-      label: branchNode.data?.label ?? undefined,
+      label: branchNode.data?.label,
       parentId: branchNode.parentId,
-      blocks: branchNode.data?.blocks ?? [],
+      blocks: (blocks ?? []) as NetworkData["branches"][number]["blocks"],
     });
   }
 

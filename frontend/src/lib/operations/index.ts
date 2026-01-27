@@ -29,6 +29,19 @@ export type {
   CostLibraryModule,
   CostLibraryType,
   HealthStatus,
+  // Snapshot types
+  UnitValue,
+  SnapshotConditions,
+  SnapshotRequest,
+  SnapshotResponse,
+  SnapshotComponentResult,
+  SnapshotThresholds,
+  FluidProperties,
+  // Snapshot validation types
+  ConditionStatus,
+  ExtractedCondition,
+  SnapshotComponentValidation,
+  SnapshotValidation,
 } from "./types";
 
 // Registry
@@ -36,20 +49,28 @@ export { OPERATIONS, getOperation, getOperations, hasOperation } from "./registr
 
 // Queries and API functions
 export {
-  // API functions
+  // Costing API functions
   runCostingEstimate,
   validateCostingNetwork,
   listCostLibraries,
   getCostLibraryTypes,
   getCostLibraryModules,
   checkCostingHealth,
-  // Query options
+  // Costing Query options
   costingValidationQueryOptions,
   costLibrariesQueryOptions,
   costLibraryTypesQueryOptions,
   costLibraryModulesQueryOptions,
   costingHealthQueryOptions,
-  // Helpers
+  // Costing Helpers
   createCostingRequest,
   createNetworkSource,
+  // Snapshot API functions
+  validateSnapshotNetwork,
+  runSnapshot,
+  runSnapshotRaw,
+  checkSnapshotHealth,
+  // Snapshot Query options
+  snapshotValidationQueryOptions,
+  snapshotHealthQueryOptions,
 } from "./queries";

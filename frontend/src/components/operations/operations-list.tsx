@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Calculator } from "lucide-react";
+import { Calculator, Activity } from "lucide-react";
 import { openDialog } from "@/contexts/dialog-provider";
 import {
   SidebarGroup,
@@ -15,15 +15,19 @@ import {
   getOperations,
   costingValidationQueryOptions,
   costingHealthQueryOptions,
+  snapshotHealthQueryOptions,
+  snapshotValidationQueryOptions,
   type Operation,
   type OperationValidation,
   type HealthStatus,
+  type SnapshotValidation,
 } from "@/lib/operations";
 import {
   OperationStatusDot,
   type OperationStatus,
 } from "./operation-status-indicator";
 import { CostingOperationDialog } from "./costing-operation-dialog";
+import { SnapshotOperationDialog } from "./snapshot-operation-dialog";
 
 type OperationsListProps = {
   /** Path to the network directory */
@@ -39,6 +43,8 @@ function getOperationIcon(operationId: string) {
   switch (operationId) {
     case "costing":
       return Calculator;
+    case "snapshot":
+      return Activity;
     default:
       return Calculator;
   }
@@ -99,20 +105,39 @@ function OperationListItem({
   networkPath,
   libraryId,
 }: OperationListItemProps) {
-  // Fetch validation status for this operation
-  const { data: validation, isLoading: isValidationLoading } = useQuery({
+  // Fetch validation status for costing operation
+  const { data: costingValidation, isLoading: isCostingValidationLoading } = useQuery({
     ...costingValidationQueryOptions(networkPath, libraryId),
     enabled: operation.id === "costing" && !!networkPath,
   });
 
-  // Fetch health status
-  const { data: health, isLoading: isHealthLoading } = useQuery({
+  // Fetch health status for costing
+  const { data: costingHealth, isLoading: isCostingHealthLoading } = useQuery({
     ...costingHealthQueryOptions(),
     enabled: operation.id === "costing",
   });
 
-  const isLoading = isValidationLoading || isHealthLoading;
-  const status = getOperationStatus(validation, health, isLoading);
+  // Fetch validation status for snapshot operation
+  // Note: The full data source is used when running the operation in the dialog
+  const { data: snapshotValidation, isLoading: isSnapshotValidationLoading } = useQuery({
+    ...snapshotValidationQueryOptions({ type: "networkId", networkId: networkPath }, networkPath),
+    enabled: operation.id === "snapshot" && !!networkPath,
+  });
+
+  // Fetch health status for snapshot
+  const { data: snapshotHealth, isLoading: isSnapshotHealthLoading } = useQuery({
+    ...snapshotHealthQueryOptions(),
+    enabled: operation.id === "snapshot",
+  });
+
+  const isLoading =
+    (operation.id === "costing" && (isCostingValidationLoading || isCostingHealthLoading)) ||
+    (operation.id === "snapshot" && (isSnapshotValidationLoading || isSnapshotHealthLoading));
+
+  const status = operation.id === "snapshot"
+    ? getSnapshotOperationStatus(snapshotValidation, snapshotHealth, isSnapshotValidationLoading || isSnapshotHealthLoading)
+    : getOperationStatus(costingValidation, costingHealth, isCostingValidationLoading || isCostingHealthLoading);
+
   const Icon = getOperationIcon(operation.id);
 
   const handleClick = () => {
@@ -122,8 +147,8 @@ function OperationListItem({
           <CostingOperationDialog
             networkPath={networkPath}
             libraryId={libraryId}
-            validation={validation}
-            health={health}
+            validation={costingValidation}
+            health={costingHealth}
             onClose={close}
           />
         ),
@@ -131,6 +156,22 @@ function OperationListItem({
           title: operation.name,
           description: operation.description,
           className: "max-w-2xl",
+        }
+      );
+    } else if (operation.id === "snapshot") {
+      openDialog(
+        ({ close }) => (
+          <SnapshotOperationDialog
+            networkPath={networkPath}
+            health={snapshotHealth}
+            validation={snapshotValidation}
+            onClose={close}
+          />
+        ),
+        {
+          title: operation.name,
+          description: operation.description,
+          className: "max-w-3xl",
         }
       );
     }
@@ -145,4 +186,20 @@ function OperationListItem({
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
+}
+
+/**
+ * Determine snapshot operation status from validation and health data.
+ */
+function getSnapshotOperationStatus(
+  validation: SnapshotValidation | undefined,
+  health: HealthStatus | undefined,
+  isLoading: boolean
+): OperationStatus {
+  if (isLoading) return "loading";
+  if (health?.status === "error") return "error";
+  if (!validation) return "unknown";
+  if (validation.isReady) return "ready";
+  if (validation.summary.extractedConditions > 0) return "warning";
+  return "error";
 }
