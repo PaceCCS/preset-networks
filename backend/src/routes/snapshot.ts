@@ -106,15 +106,11 @@ snapshotRoutes.post("/run", async (c) => {
       body.baseNetworkId,
     );
 
-    // Merge with overrides
-    const conditions = {
-      ...transformResult.conditions,
-      ...body.conditionOverrides,
-    };
-
-    // Build the scenario request
+    // Build the scenario request with network structure and series
     const scenarioRequest: ScenarioRequest = {
-      conditions,
+      conditions: transformResult.conditions,
+      structure: transformResult.networkStructure,
+      series: transformResult.series,
       includeAllPipes: body.includeAllPipes,
     };
 
@@ -167,9 +163,11 @@ snapshotRoutes.post("/run", async (c) => {
     // Transform response to our format
     const result = transformScenarioResponse(scenarioResponse);
 
-    // Include validation info in the response
+    // Include validation info, network structure, and series in the response
     return c.json({
       ...result,
+      networkStructure: transformResult.networkStructure,
+      series: transformResult.series,
       validation: transformResult.validation,
     });
   } catch (error) {

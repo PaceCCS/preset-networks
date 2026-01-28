@@ -408,7 +408,6 @@ export type SnapshotRequest =
   | {
       type: "network";
       networkId: string;
-      conditionOverrides?: SnapshotConditions;
       includeAllPipes?: boolean;
     };
 

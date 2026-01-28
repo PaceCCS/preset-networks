@@ -24,6 +24,14 @@ import { Conditions, UnitValue } from "./types";
 export type NetworkData = {
   groups: NetworkGroup[];
   branches: NetworkBranch[];
+  edges: NetworkEdge[];
+};
+
+export type NetworkEdge = {
+  id: string;
+  source: string;
+  target: string;
+  data?: Record<string, unknown>;
 };
 
 export type NetworkGroup = {
@@ -79,10 +87,37 @@ export type ComponentValidation = {
 };
 
 /**
+ * Component in a series with its properties.
+ */
+export type SeriesComponent = {
+  elem: string;
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Subnet definition for the network structure.
+ */
+export type Subnet = {
+  subnetName: string;
+  downstreamSubnetName: string;
+  componentSeriesMap: Record<string, string[]>;
+};
+
+/**
+ * Network structure for the Scenario Modeller.
+ */
+export type NetworkStructure = {
+  subnets: Record<string, Subnet>;
+};
+
+/**
  * Result of transforming a network to snapshot conditions.
  */
 export type SnapshotTransformResult = {
   conditions: Conditions;
+  networkStructure: NetworkStructure;
+  series: Record<string, SeriesComponent[]>;
   validation: {
     isReady: boolean;
     summary: {
@@ -279,7 +314,15 @@ async function loadNetworkData(
   source: NetworkSource,
 ): Promise<{ data: NetworkData; networkPath: string | null }> {
   if (source.type === "data") {
-    return { data: source.network, networkPath: null };
+    // For inline data, edges may not be provided - default to empty
+    const data = source.network as NetworkData;
+    return {
+      data: {
+        ...data,
+        edges: data.edges ?? [],
+      },
+      networkPath: null,
+    };
   }
 
   const networkPath = resolveNetworkPath(source.networkId);
@@ -301,6 +344,14 @@ async function loadNetworkData(
     data?: Record<string, unknown>;
     position?: { x: number; y: number };
   }> = JSON.parse(nodesResult);
+
+  // Load full network to get edges
+  const fullNetworkResult = dagger.load_network_from_files(
+    filesJson,
+    configContent || undefined,
+  );
+  const fullNetwork = JSON.parse(fullNetworkResult);
+  const rawEdges: NetworkEdge[] = fullNetwork.edges || [];
 
   const rawGroups = nodes.filter(
     (n) => n.type === "labeledGroup" || n.type === "group",
@@ -336,7 +387,7 @@ async function loadNetworkData(
     };
   });
 
-  return { data: { groups, branches }, networkPath };
+  return { data: { groups, branches, edges: rawEdges }, networkPath };
 }
 
 // ============================================================================
@@ -587,6 +638,95 @@ function extractBlockConditions(
 }
 
 // ============================================================================
+// Network Structure Building
+// ============================================================================
+
+/**
+ * Build a map of downstream branch relationships from edges.
+ * Returns a map where key is source branch ID and value is target branch ID.
+ */
+function buildDownstreamMap(edges: NetworkEdge[]): Map<string, string> {
+  const downstreamMap = new Map<string, string>();
+
+  for (const edge of edges) {
+    // Edges connect branches - source branch flows to target branch
+    if (edge.source && edge.target) {
+      downstreamMap.set(edge.source, edge.target);
+    }
+  }
+
+  return downstreamMap;
+}
+
+/**
+ * Build the component series map for a branch.
+ * Since we have one series of components per branch, this just maps
+ * the branch ID to an empty array (the series itself is in the `series` field).
+ */
+function buildComponentSeriesMap(branchId: string): Record<string, string[]> {
+  return { [branchId]: [] };
+}
+
+/**
+ * Convert enriched block properties to series component format.
+ * Maps block properties to the expected Scenario Modeller format.
+ */
+function blockToSeriesComponent(
+  block: NetworkBlock,
+  componentId: string,
+  blockIndex: number,
+): SeriesComponent {
+  const component: SeriesComponent = {
+    elem: block.type,
+    name: block.label || componentId,
+  };
+
+  // Copy relevant properties from the block
+  // These are the properties that the Scenario Modeller expects
+  const propertiesToCopy = [
+    "elevation",
+    "pressure",
+    "temperature",
+    "flowrate",
+    "length",
+    "diameter",
+    "uValue",
+    "ambientTemperature",
+    "isentropicEfficiency",
+    "mechanicalEfficiency",
+    "outletTemperature",
+    "pressureDelta",
+    "minimumPressure",
+    "minimumUpstreamPressure",
+    "maximumPressure",
+    "maximumOutletPressure",
+    "maximumOperatingTemperature",
+    "numberOfStages",
+    "wellCount",
+    "enabled",
+    "intermediate",
+    // Composition fractions
+    "carbonDioxideFraction",
+    "nitrogenFraction",
+    "waterFraction",
+    "hydrogenSulfideFraction",
+    "carbonMonoxideFraction",
+    "argonFraction",
+    "methaneFraction",
+    "hydrogenFraction",
+    "oxygenFraction",
+  ];
+
+  for (const prop of propertiesToCopy) {
+    if (block[prop] !== undefined && block[prop] !== null) {
+      component[prop] = block[prop];
+    }
+  }
+
+  return component;
+}
+
+// ============================================================================
 // Main Transform Function
 // ============================================================================
 
@@ -605,7 +745,7 @@ export async function transformNetworkToSnapshotConditions(
   await dim.init();
 
   const { data: networkData } = await loadNetworkData(source);
-  const { branches } = networkData;
+  const { branches, edges } = networkData;
 
   // Validate all blocks and get resolved properties (with inheritance)
   const validationResults = await validateNetworkBlocks(
@@ -614,11 +754,18 @@ export async function transformNetworkToSnapshotConditions(
     baseNetworkId,
   );
 
+  // Build downstream relationship map from edges
+  const downstreamMap = buildDownstreamMap(edges);
+
   const componentValidations: ComponentValidation[] = [];
   const conditions: Conditions = {};
+  const series: Record<string, SeriesComponent[]> = {};
+  const subnets: Record<string, Subnet> = {};
 
   // Process all blocks from all branches
   for (const branch of branches) {
+    const branchComponents: SeriesComponent[] = [];
+
     for (let i = 0; i < branch.blocks.length; i++) {
       const rawBlock = branch.blocks[i];
 
@@ -638,6 +785,12 @@ export async function transformNetworkToSnapshotConditions(
       );
 
       const componentId = getComponentId(enrichedBlock, branch.id, i);
+
+      // Add to branch components
+      branchComponents.push(
+        blockToSeriesComponent(enrichedBlock, componentId, i),
+      );
+
       const validation = extractBlockConditions(
         enrichedBlock,
         componentType,
@@ -655,6 +808,18 @@ export async function transformNetworkToSnapshotConditions(
         }
       }
     }
+
+    // Build series for this branch
+    const branchLabel = branch.label || branch.id;
+    series[branchLabel] = branchComponents;
+
+    // Build subnet for this branch
+    const downstreamBranchId = downstreamMap.get(branch.id) || "";
+    subnets[branch.id] = {
+      subnetName: branch.id,
+      downstreamSubnetName: downstreamBranchId,
+      componentSeriesMap: buildComponentSeriesMap(branch.id),
+    };
   }
 
   // Calculate summary
@@ -678,6 +843,10 @@ export async function transformNetworkToSnapshotConditions(
 
   return {
     conditions,
+    networkStructure: {
+      subnets,
+    },
+    series,
     validation: {
       isReady: extractedConditions > 0 && !hasCriticalMissing,
       summary: {

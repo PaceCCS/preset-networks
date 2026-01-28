@@ -352,16 +352,12 @@ export async function validateSnapshotNetwork(
 /**
  * Run a snapshot simulation for a network.
  * Conditions are automatically extracted from the network.
- * Optional overrides can be provided to modify specific values.
- *
  * @param source - Network source (networkId or inline data from collections)
- * @param conditionOverrides - Optional overrides for specific conditions
  * @param includeAllPipes - Whether to include all pipe segments in response
  * @param baseNetworkId - Optional networkId for inheritance when source is inline data
  */
 export async function runSnapshot(
   source: NetworkSource,
-  conditionOverrides?: SnapshotConditions,
   includeAllPipes?: boolean,
   baseNetworkId?: string,
 ): Promise<SnapshotResponse> {
@@ -370,7 +366,6 @@ export async function runSnapshot(
   const request = {
     source,
     baseNetworkId,
-    conditionOverrides,
     includeAllPipes,
   };
 

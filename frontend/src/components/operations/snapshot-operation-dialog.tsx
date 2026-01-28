@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,7 +24,6 @@ import {
   type SnapshotValidation,
   type SnapshotComponentValidation,
   type SnapshotResponse,
-  type SnapshotConditions,
   type ExtractedCondition,
   type NetworkSource,
   runSnapshot,
@@ -47,7 +45,6 @@ export function SnapshotOperationDialog({
   validation: initialValidation,
   onClose,
 }: SnapshotOperationDialogProps) {
-  const [overrides, setOverrides] = useState<SnapshotConditions>({});
   const [includeAllPipes, setIncludeAllPipes] = useState(false);
   const [result, setResult] = useState<SnapshotResponse | null>(null);
   const [networkSource, setNetworkSource] = useState<NetworkSource | null>(
@@ -83,37 +80,14 @@ export function SnapshotOperationDialog({
       if (!networkSource) {
         throw new Error("Network data not loaded");
       }
-      return runSnapshot(
-        networkSource,
-        overrides,
-        includeAllPipes,
-        networkPath,
-      );
+      return runSnapshot(networkSource, includeAllPipes, networkPath);
     },
     onSuccess: (data) => {
       setResult(data);
     },
   });
 
-  const isServerAvailable = health?.status === "ok";
   const canRun = validation?.isReady;
-
-  const handleOverrideChange = (key: string, unit: string, value: string) => {
-    if (value === "") {
-      // Remove override
-      const newOverrides = { ...overrides };
-      delete newOverrides[key];
-      setOverrides(newOverrides);
-    } else {
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
-        setOverrides({
-          ...overrides,
-          [key]: { [unit]: numValue },
-        });
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -127,11 +101,7 @@ export function SnapshotOperationDialog({
           Loading network conditions...
         </div>
       ) : validation ? (
-        <ValidationSummarySection
-          validation={validation}
-          overrides={overrides}
-          onOverrideChange={handleOverrideChange}
-        />
+        <ValidationSummarySection validation={validation} />
       ) : null}
 
       {/* Include All Pipes Toggle */}
@@ -230,12 +200,8 @@ function ServerStatusSection({ health }: { health?: HealthStatus }) {
 
 function ValidationSummarySection({
   validation,
-  overrides,
-  onOverrideChange,
 }: {
   validation: SnapshotValidation;
-  overrides: SnapshotConditions;
-  onOverrideChange: (key: string, unit: string, value: string) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -272,8 +238,6 @@ function ValidationSummarySection({
             <ComponentValidationCard
               key={`${component.componentType}-${component.componentId}`}
               component={component}
-              overrides={overrides}
-              onOverrideChange={onOverrideChange}
             />
           ))}
         </div>
@@ -308,12 +272,8 @@ function ValidationSummarySection({
 
 function ComponentValidationCard({
   component,
-  overrides,
-  onOverrideChange,
 }: {
   component: SnapshotComponentValidation;
-  overrides: SnapshotConditions;
-  onOverrideChange: (key: string, unit: string, value: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -355,14 +315,7 @@ function ComponentValidationCard({
       <CollapsibleContent>
         <div className="border-t p-2 space-y-1">
           {component.conditions.map((condition) => (
-            <ConditionRow
-              key={condition.key}
-              condition={condition}
-              override={overrides[condition.key]}
-              onOverrideChange={(value) =>
-                onOverrideChange(condition.key, condition.unit, value)
-              }
-            />
+            <ConditionRow key={condition.key} condition={condition} />
           ))}
         </div>
       </CollapsibleContent>
@@ -370,15 +323,7 @@ function ComponentValidationCard({
   );
 }
 
-function ConditionRow({
-  condition,
-  override,
-  onOverrideChange,
-}: {
-  condition: ExtractedCondition;
-  override?: Record<string, number | boolean>;
-  onOverrideChange: (value: string) => void;
-}) {
+function ConditionRow({ condition }: { condition: ExtractedCondition }) {
   const statusColors = {
     extracted: "bg-green-50 border-green-200",
     default: "bg-blue-50 border-blue-200",
@@ -388,7 +333,6 @@ function ConditionRow({
   const currentValue = condition.value
     ? Object.values(condition.value)[0]
     : null;
-  const overrideValue = override ? Object.values(override)[0] : null;
 
   return (
     <div
@@ -402,24 +346,14 @@ function ConditionRow({
         <span className="text-muted-foreground ml-1">({condition.unit})</span>
       </div>
       <div className="flex items-center gap-2">
-        {currentValue !== null && (
+        {currentValue !== null ? (
           <span className="text-muted-foreground">
             {condition.status === "default" ? "default: " : ""}
             {String(currentValue)}
           </span>
+        ) : (
+          <span className="text-yellow-600">Missing</span>
         )}
-        <Input
-          type="text"
-          placeholder={condition.status === "missing" ? "Required" : "Override"}
-          value={overrideValue !== null ? String(overrideValue) : ""}
-          onChange={(e) => onOverrideChange(e.target.value)}
-          className={cn(
-            "w-24 h-7 text-xs",
-            condition.status === "missing" &&
-              !overrideValue &&
-              "border-yellow-500",
-          )}
-        />
       </div>
     </div>
   );

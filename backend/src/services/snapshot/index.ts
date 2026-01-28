@@ -43,8 +43,12 @@ export {
   type NetworkGroup,
   type NetworkBranch,
   type NetworkBlock,
+  type NetworkEdge,
   type ConditionStatus,
   type ExtractedCondition,
   type ComponentValidation,
+  type SeriesComponent,
+  type Subnet,
+  type NetworkStructure,
   type SnapshotTransformResult,
 } from "./network-adapter";

@@ -85,7 +85,6 @@ export const NetworkSourceSchema = S.Union(
 export const SnapshotRunRequestSchema = S.Struct({
   source: NetworkSourceSchema,
   baseNetworkId: S.optional(S.String),
-  conditionOverrides: S.optional(ConditionsSchema),
   includeAllPipes: S.optional(S.Boolean),
 });
 
@@ -128,12 +127,11 @@ export const DirectSnapshotRequestSchema = S.Struct({
 });
 
 /**
- * Request using a preset network with optional condition overrides.
+ * Request using a preset network.
  */
 export const NetworkSnapshotRequestSchema = S.Struct({
   type: S.Literal("network"),
   networkId: S.String,
-  conditionOverrides: S.optional(ConditionsSchema),
   includeAllPipes: S.optional(S.Boolean),
 });
 

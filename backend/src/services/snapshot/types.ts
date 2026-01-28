@@ -24,11 +24,21 @@ export type UnitValue = {
 export type Conditions = Record<string, UnitValue>;
 
 /**
+ * Component in a series with its properties.
+ */
+export interface SeriesComponent {
+  elem: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+/**
  * Request to the Scenario Modeller /api/Scenario endpoint.
  */
 export interface ScenarioRequest {
   conditions: Conditions;
   structure?: NetworkStructure;
+  series?: Record<string, SeriesComponent[]>;
   includeAllPipes?: boolean;
 }
 
