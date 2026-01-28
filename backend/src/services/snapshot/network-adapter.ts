@@ -4,7 +4,6 @@
  * Transforms network blocks into snapshot conditions for the Scenario Modeller API.
  */
 
-import { DaggerWasm } from "../../../pkg/dagger.js";
 import * as path from "path";
 import * as fs from "fs/promises";
 import { resolveNetworkPath } from "../../utils/network-path";
@@ -16,6 +15,7 @@ import {
   type Block,
 } from "../effectValidation";
 import dim from "../dim";
+import { getDagger } from "../../utils/getDagger";
 
 // ============================================================================
 // Types
@@ -242,19 +242,6 @@ const DEFAULT_VALUES: Record<string, Record<string, UnitValue>> = {
 };
 
 // ============================================================================
-// WASM Setup
-// ============================================================================
-
-let daggerWasm: DaggerWasm | null = null;
-
-function getWasm() {
-  if (!daggerWasm) {
-    daggerWasm = new DaggerWasm();
-  }
-  return daggerWasm;
-}
-
-// ============================================================================
 // Network Loading
 // ============================================================================
 
@@ -298,9 +285,9 @@ async function loadNetworkData(
   const networkPath = resolveNetworkPath(source.networkId);
   const { files, configContent } = await readNetworkFiles(networkPath);
   const filesJson = JSON.stringify(files);
-  const wasm = getWasm();
+  const dagger = getDagger();
 
-  const nodesResult = wasm.query_from_files(
+  const nodesResult = dagger.query_from_files(
     filesJson,
     configContent || undefined,
     "network/nodes",

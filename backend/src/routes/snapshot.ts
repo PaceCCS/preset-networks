@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { Either } from "effect";
 import * as S from "effect/Schema";
 import {
-  transformToScenarioRequest,
   transformScenarioResponse,
   type ScenarioRequest,
   type ScenarioOkResponse,
@@ -23,33 +22,43 @@ const SNAPSHOT_SERVER_URL =
 // Request Schemas
 // ============================================================================
 
-const NetworkBlockSchema = S.mutable(S.Struct({
-  type: S.String,
-  quantity: S.optional(S.Number),
-}).pipe(S.extend(S.Record({ key: S.String, value: S.Unknown }))));
+const NetworkBlockSchema = S.mutable(
+  S.Struct({
+    type: S.String,
+    quantity: S.optional(S.Number),
+  }).pipe(S.extend(S.Record({ key: S.String, value: S.Unknown }))),
+);
 
-const NetworkBranchSchema = S.mutable(S.Struct({
-  id: S.String,
-  label: S.optional(S.String),
-  parentId: S.optional(S.String),
-  blocks: S.mutable(S.Array(NetworkBlockSchema)),
-}));
+const NetworkBranchSchema = S.mutable(
+  S.Struct({
+    id: S.String,
+    label: S.optional(S.String),
+    parentId: S.optional(S.String),
+    blocks: S.mutable(S.Array(NetworkBlockSchema)),
+  }),
+);
 
-const NetworkGroupSchema = S.mutable(S.Struct({
-  id: S.String,
-  label: S.optional(S.String),
-  branchIds: S.mutable(S.Array(S.String)),
-}));
+const NetworkGroupSchema = S.mutable(
+  S.Struct({
+    id: S.String,
+    label: S.optional(S.String),
+    branchIds: S.mutable(S.Array(S.String)),
+  }),
+);
 
-const NetworkDataSchema = S.mutable(S.Struct({
-  groups: S.mutable(S.Array(NetworkGroupSchema)),
-  branches: S.mutable(S.Array(NetworkBranchSchema)),
-}));
+const NetworkDataSchema = S.mutable(
+  S.Struct({
+    groups: S.mutable(S.Array(NetworkGroupSchema)),
+    branches: S.mutable(S.Array(NetworkBranchSchema)),
+  }),
+);
 
-const DataSourceSchema = S.mutable(S.Struct({
-  type: S.Literal("data"),
-  network: NetworkDataSchema,
-}));
+const DataSourceSchema = S.mutable(
+  S.Struct({
+    type: S.Literal("data"),
+    network: NetworkDataSchema,
+  }),
+);
 
 const NetworkIdSourceSchema = S.Struct({
   type: S.Literal("networkId"),
@@ -81,7 +90,7 @@ const SnapshotValidateRequestSchema = S.Struct({
 
 function validateRequest<A, I>(
   schema: S.Schema<A, I>,
-  data: unknown
+  data: unknown,
 ): Either.Either<A, string> {
   const result = S.decodeUnknownEither(schema)(data);
   if (Either.isRight(result)) {
@@ -106,7 +115,10 @@ snapshotRoutes.post("/validate", async (c) => {
 
     const parseResult = validateRequest(SnapshotValidateRequestSchema, rawBody);
     if (Either.isLeft(parseResult)) {
-      return c.json({ error: "Invalid request", details: parseResult.left }, 400);
+      return c.json(
+        { error: "Invalid request", details: parseResult.left },
+        400,
+      );
     }
     const body = parseResult.right;
 
@@ -125,7 +137,7 @@ snapshotRoutes.post("/validate", async (c) => {
         error: "Validation failed",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -144,7 +156,10 @@ snapshotRoutes.post("/run", async (c) => {
 
     const parseResult = validateRequest(SnapshotRunRequestSchema, rawBody);
     if (Either.isLeft(parseResult)) {
-      return c.json({ error: "Invalid request", details: parseResult.left }, 400);
+      return c.json(
+        { error: "Invalid request", details: parseResult.left },
+        400,
+      );
     }
     const body = parseResult.right;
 
@@ -168,7 +183,10 @@ snapshotRoutes.post("/run", async (c) => {
     };
 
     // Log the request
-    console.log("[Snapshot Run] Request:", JSON.stringify(scenarioRequest, null, 2));
+    console.log(
+      "[Snapshot Run] Request:",
+      JSON.stringify(scenarioRequest, null, 2),
+    );
 
     // Call the Scenario Modeller API
     let scenarioResponse: ScenarioOkResponse | ScenarioFailResponse;
@@ -189,7 +207,7 @@ snapshotRoutes.post("/run", async (c) => {
             status: response.status,
             message: errorText,
           },
-          502
+          502,
         );
       }
 
@@ -198,12 +216,15 @@ snapshotRoutes.post("/run", async (c) => {
       return c.json(
         {
           error: "Snapshot server unavailable",
-          message: `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
+          message:
+            `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
             "Ensure the Scenario Modeller server is running.",
           details:
-            fetchError instanceof Error ? fetchError.message : String(fetchError),
+            fetchError instanceof Error
+              ? fetchError.message
+              : String(fetchError),
         },
-        503
+        503,
       );
     }
 
@@ -222,7 +243,7 @@ snapshotRoutes.post("/run", async (c) => {
         error: "Internal error",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -243,7 +264,7 @@ snapshotRoutes.post("/raw", async (c) => {
           error: "Invalid request",
           message: "Request must include a 'conditions' object",
         },
-        400
+        400,
       );
     }
 
@@ -265,7 +286,7 @@ snapshotRoutes.post("/raw", async (c) => {
             status: response.status,
             message: errorText,
           },
-          502
+          502,
         );
       }
 
@@ -274,12 +295,15 @@ snapshotRoutes.post("/raw", async (c) => {
       return c.json(
         {
           error: "Snapshot server unavailable",
-          message: `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
+          message:
+            `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
             "Ensure the Scenario Modeller server is running.",
           details:
-            fetchError instanceof Error ? fetchError.message : String(fetchError),
+            fetchError instanceof Error
+              ? fetchError.message
+              : String(fetchError),
         },
-        503
+        503,
       );
     }
 
@@ -291,7 +315,7 @@ snapshotRoutes.post("/raw", async (c) => {
         error: "Internal error",
         message: error instanceof Error ? error.message : String(error),
       },
-      500
+      500,
     );
   }
 });
@@ -311,7 +335,7 @@ snapshotRoutes.get("/health", async (c) => {
           "Content-Type": "application/json",
         },
         signal: AbortSignal.timeout(5000),
-      }
+      },
     );
 
     if (response.ok) {
