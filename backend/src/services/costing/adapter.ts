@@ -74,6 +74,7 @@ import {
   getEnrichedBlockFromValidation,
   type ValidationResult,
   type Block,
+  type NetworkSource as EffectNetworkSource,
 } from "../effectValidation";
 
 /**
@@ -159,13 +160,13 @@ async function loadNetworkData(
 
 import type { AssetPropertyOverrides } from "./request-types";
 
-export type TransformOptions = {
+export type CostingTransformOptions = {
   libraryId: string;
   assetDefaults?: AssetPropertyOverrides;
   assetOverrides?: Record<string, AssetPropertyOverrides>;
 };
 
-export type TransformResult = {
+export type CostingTransformResult = {
   request: CostEstimateRequest;
   assetMetadata: AssetMetadata[];
 };
@@ -204,29 +205,32 @@ export type AssetMetadata = {
  * @param source - Network source (path or inline data)
  * @param options - Transform options including library ID and asset overrides
  */
-// Default schema set for costing operations
-const DEFAULT_COSTING_SCHEMA = "v1.0-costing";
-
 export async function transformNetworkToCostingRequest(
   source: NetworkSource,
-  options: TransformOptions,
-): Promise<TransformResult> {
-  // Ensure dim is initialized (idempotent - safe to call multiple times)
+  schemaSet: string,
+  options: CostingTransformOptions,
+): Promise<CostingTransformResult> {
   await dim.init();
-
-  // Use costing-specific schema for property resolution
-  const schemaSet = DEFAULT_COSTING_SCHEMA;
 
   // Load network data from source
   const { data: networkData, networkPath } = await loadNetworkData(source);
 
-  // Get validation results with resolved properties
-  // This is THE unified way to get resolved properties - operations should NOT
-  // do their own property resolution
-  let validationResults: Record<string, ValidationResult> = {};
-  if (networkPath) {
-    validationResults = await validateNetworkBlocks(networkPath, schemaSet);
-  }
+  // Convert to effectValidation NetworkSource format
+  // Cast needed because adapters use broader NetworkBlock type (unknown index signature)
+  // while effectValidation uses stricter Block type (string | number | null | undefined)
+  const effectSource =
+    source.type === "networkId"
+      ? ({ type: "networkId", networkId: source.networkId } as const)
+      : ({
+          type: "data",
+          network: source.network,
+        } as EffectNetworkSource);
+
+  // Validate all blocks and get resolved properties
+  const validationResults = await validateNetworkBlocks(
+    effectSource,
+    schemaSet,
+  );
 
   // Get module lookup service
   const moduleLookup = await getModuleLookupService(options.libraryId);
@@ -350,7 +354,7 @@ async function transformGroupToAsset(
   group: NetworkGroup,
   branches: NetworkBranch[],
   moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
-  options: TransformOptions,
+  options: CostingTransformOptions,
   validationResults: Record<string, ValidationResult>,
 ): Promise<{ asset: AssetParameters; metadata: AssetMetadata }> {
   // Collect all blocks from all branches in this group
@@ -427,7 +431,7 @@ async function transformGroupToAsset(
 async function transformBranchToAsset(
   branch: NetworkBranch,
   moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
-  options: TransformOptions,
+  options: CostingTransformOptions,
   validationResults: Record<string, ValidationResult>,
 ): Promise<{ asset: AssetParameters; metadata: AssetMetadata }> {
   const costItems: CostItemParameters[] = [];

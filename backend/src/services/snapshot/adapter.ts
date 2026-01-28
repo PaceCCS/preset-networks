@@ -26,35 +26,6 @@ const FIELD_TYPE_SEPARATOR = "|";
 const FIELD_ID_SEPARATOR = "|";
 
 // ============================================================================
-// Request Transformation
-// ============================================================================
-
-/**
- * Transform our request format to the Scenario Modeller API format.
- */
-export function transformToScenarioRequest(
-  input: SnapshotRequestInput,
-  baseConditions?: Conditions,
-): ScenarioRequest {
-  let conditions: Conditions;
-
-  if (input.type === "direct") {
-    conditions = input.conditions;
-  } else {
-    // network type - merge base conditions with overrides
-    conditions = {
-      ...baseConditions,
-      ...input.conditionOverrides,
-    };
-  }
-
-  return {
-    conditions,
-    includeAllPipes: input.includeAllPipes,
-  };
-}
-
-// ============================================================================
 // Response Transformation
 // ============================================================================
 

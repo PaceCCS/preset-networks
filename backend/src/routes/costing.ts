@@ -46,6 +46,7 @@ costingRoutes.post("/estimate", async (c) => {
     // Transform network to costing request
     const { request, assetMetadata } = await transformNetworkToCostingRequest(
       body.source,
+      "v1.0-costing",
       {
         libraryId: body.libraryId,
         assetDefaults: body.assetDefaults,
@@ -148,6 +149,8 @@ costingRoutes.post("/validate", async (c) => {
 
     const { assetMetadata } = await transformNetworkToCostingRequest(
       body.source,
+      "v1.0-costing", // I believe we need a schema set per cost library
+      // the block to module mapping is different for each cost library
       {
         libraryId: body.libraryId,
       },

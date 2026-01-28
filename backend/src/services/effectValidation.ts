@@ -13,10 +13,7 @@ import { parseUnitPreferences } from "./query";
 import dim from "./dim";
 import { parseValue, convertToNumber } from "./valueParser";
 import { getDagger } from "../utils/getDagger";
-
-function resolvePath(relativePath: string): string {
-  return path.resolve(process.cwd(), relativePath);
-}
+import { resolveNetworkPath } from "../utils/network-path";
 
 type NetworkFiles = {
   files: Record<string, string>;
@@ -24,7 +21,7 @@ type NetworkFiles = {
 };
 
 async function readNetworkFiles(networkPath: string): Promise<NetworkFiles> {
-  const absolutePath = resolvePath(networkPath);
+  const absolutePath = resolveNetworkPath(networkPath);
   const entries = await fs.readdir(absolutePath, { withFileTypes: true });
 
   const files: Record<string, string> = {};
@@ -515,7 +512,7 @@ async function validateBlockInternal(
   blockType: string,
   blockPath: string,
   schemaSet: string,
-  networkPath: string,
+  networkPath: string | null,
   configContent: string | null,
   queryOverrides: Record<string, string> = {},
   files: Record<string, string>,
@@ -693,7 +690,7 @@ async function validateBlockInternal(
         blockType,
         unitPreferences,
         propertyMetadata,
-        networkPath,
+        networkPath: networkPath ?? undefined,
         schemaSet,
         blockPath,
       };
@@ -863,17 +860,53 @@ async function validateBlockInternal(
   return results;
 }
 
+export type NetworkSource =
+  | { type: "networkId"; networkId: string }
+  | { type: "data"; network: NetworkData };
+
+export type NetworkData = {
+  groups: Array<{ id: string; label?: string; branchIds: string[] }>;
+  branches: Array<{
+    id: string;
+    label?: string;
+    parentId?: string;
+    blocks: Block[];
+  }>;
+};
+
 /**
- * Validate all blocks in the network
+ * Validate all blocks in the network.
+ *
+ * @param source - Network source (networkId or inline data)
+ * @param schemaSet - Schema set to use for validation
+ * @param baseNetworkId - Optional networkId for property resolution when source is inline data
+ * @param queryOverrides - Optional unit overrides
  */
 export async function validateNetworkBlocks(
-  networkPath: string,
+  source: NetworkSource,
   schemaSet: string,
+  baseNetworkId?: string,
   queryOverrides: Record<string, string> = {},
 ): Promise<Record<string, ValidationResult>> {
-  // Read files once at the top level
-  const { files, configContent } = await readNetworkFiles(networkPath);
-  const filesJson = JSON.stringify(files);
+  // Determine the network path for file-based property resolution
+  let networkPath: string | null = null;
+  if (source.type === "networkId") {
+    networkPath = resolveNetworkPath(source.networkId);
+  } else if (baseNetworkId) {
+    networkPath = resolveNetworkPath(baseNetworkId);
+  }
+
+  // Read files for property resolution (if we have a path)
+  let files: Record<string, string> = {};
+  let configContent: string | null = null;
+  let filesJson = "{}";
+
+  if (networkPath) {
+    const networkFiles = await readNetworkFiles(networkPath);
+    files = networkFiles.files;
+    configContent = networkFiles.configContent;
+    filesJson = JSON.stringify(files);
+  }
 
   // Initialize dim once for all blocks
   await dim.init();
@@ -901,67 +934,82 @@ export async function validateNetworkBlocks(
   const dagger = getDagger();
   const allResults: Record<string, ValidationResult> = {};
 
-  // Query for all nodes and filter for branches
-  try {
-    const nodesQuery = dagger.query_from_files(
-      filesJson,
-      configContent || undefined,
-      "network/nodes",
-    );
-    const nodes = JSON.parse(nodesQuery);
-    const nodesArray = Array.isArray(nodes) ? nodes : [nodes];
+  // Get branches either from inline data or by querying files
+  let branches: Array<{ id: string; blocks: Block[] }> = [];
 
-    // Filter for branch nodes (type is "branch" from TOML)
-    const branches = nodesArray.filter(
-      (node: any) => node && typeof node === "object" && node.type === "branch",
-    );
-
-    for (const branch of branches) {
-      if (!branch || typeof branch !== "object" || !branch.id) {
-        continue;
-      }
-
-      const branchId = branch.id;
-      // Query for blocks in this branch
-      const branchBlocksQuery = dagger.query_from_files(
+  if (source.type === "data") {
+    // Use inline data directly
+    branches = source.network.branches;
+  } else {
+    // Query for branches from files
+    try {
+      const nodesQuery = dagger.query_from_files(
         filesJson,
         configContent || undefined,
-        `${branchId}/blocks`,
+        "network/nodes",
       );
-      const branchBlocks = JSON.parse(branchBlocksQuery);
-      const branchBlocksArray = Array.isArray(branchBlocks)
-        ? branchBlocks
-        : [branchBlocks];
+      const nodes = JSON.parse(nodesQuery);
+      const nodesArray = Array.isArray(nodes) ? nodes : [nodes];
 
-      for (let i = 0; i < branchBlocksArray.length; i++) {
-        const block = branchBlocksArray[i];
-        if (!block || typeof block !== "object" || !block.type) {
+      // Filter for branch nodes (type is "branch" from TOML)
+      const branchNodes = nodesArray.filter(
+        (node: any) =>
+          node && typeof node === "object" && node.type === "branch",
+      );
+
+      for (const branch of branchNodes) {
+        if (!branch || typeof branch !== "object" || !branch.id) {
           continue;
         }
 
-        const blockPath = `${branchId}/blocks/${i}`;
-        const blockResults = await validateBlockInternal(
-          block,
-          block.type,
-          blockPath,
-          schemaSet,
-          networkPath,
-          configContent,
-          queryOverrides,
-          files,
+        // Query for blocks in this branch
+        const branchBlocksQuery = dagger.query_from_files(
           filesJson,
-          unitPreferences,
+          configContent || undefined,
+          `${branch.id}/blocks`,
         );
+        const branchBlocks = JSON.parse(branchBlocksQuery);
+        const branchBlocksArray = Array.isArray(branchBlocks)
+          ? branchBlocks
+          : [branchBlocks];
 
-        // Merge results
-        for (const [propPath, result] of Object.entries(blockResults)) {
-          allResults[propPath] = result;
-        }
+        branches.push({ id: branch.id, blocks: branchBlocksArray });
+      }
+    } catch (error) {
+      console.warn("Failed to query network nodes for validation", error);
+      throw error;
+    }
+  }
+
+  // Validate all blocks from all branches
+  for (const branch of branches) {
+    const branchId = branch.id;
+
+    for (let i = 0; i < branch.blocks.length; i++) {
+      const block = branch.blocks[i];
+      if (!block || typeof block !== "object" || !block.type) {
+        continue;
+      }
+
+      const blockPath = `${branchId}/blocks/${i}`;
+      const blockResults = await validateBlockInternal(
+        block,
+        block.type,
+        blockPath,
+        schemaSet,
+        networkPath,
+        configContent,
+        queryOverrides,
+        files,
+        filesJson,
+        unitPreferences,
+      );
+
+      // Merge results
+      for (const [propPath, result] of Object.entries(blockResults)) {
+        allResults[propPath] = result;
       }
     }
-  } catch (error) {
-    console.warn("Failed to query network nodes for validation", error);
-    throw error;
   }
 
   return allResults;

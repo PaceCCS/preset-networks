@@ -10,6 +10,8 @@ import type { Operation } from "./types";
 /**
  * Available operations.
  * Add new operations here as they are implemented.
+ *
+ * I would have expected this schema registry stuff to be in the backend
  */
 export const OPERATIONS: Operation[] = [
   {

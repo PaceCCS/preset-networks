@@ -14,23 +14,30 @@
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
-import { transformNetworkToCostingRequest, transformCostingResponse } from "./adapter";
+import {
+  transformNetworkToCostingRequest,
+  transformCostingResponse,
+} from "./adapter";
 import type { NetworkSource, NetworkData } from "./request-types";
 import type { CostEstimateResponse } from "./types";
 
-const COSTING_SERVER_URL = process.env.COSTING_SERVER_URL || "http://localhost:8080";
+const COSTING_SERVER_URL =
+  process.env.COSTING_SERVER_URL || "http://localhost:8080";
 const LIBRARY_ID = "V1.1_working";
 
 // Helper to check if costing server is available
 async function isCostingServerAvailable(): Promise<boolean> {
   try {
     // Try the API endpoint with empty request
-    const response = await fetch(`${COSTING_SERVER_URL}/api/cost/estimate?library_id=${LIBRARY_ID}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assets: [] }),
-      signal: AbortSignal.timeout(5000),
-    });
+    const response = await fetch(
+      `${COSTING_SERVER_URL}/api/cost/estimate?library_id=${LIBRARY_ID}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assets: [] }),
+        signal: AbortSignal.timeout(5000),
+      },
+    );
     // Server is available if we get a response (even error response)
     return response.ok || response.status < 500;
   } catch {
@@ -42,7 +49,7 @@ async function isCostingServerAvailable(): Promise<boolean> {
 async function callCostingServer(
   request: unknown,
   libraryId: string = LIBRARY_ID,
-  currency: string = "EUR"
+  currency: string = "EUR",
 ): Promise<CostEstimateResponse> {
   const url = `${COSTING_SERVER_URL}/api/cost/estimate?library_id=${libraryId}&target_currency_code=${currency}`;
   const response = await fetch(url, {
@@ -70,7 +77,9 @@ describe("adapter integration tests", () => {
   beforeAll(async () => {
     serverAvailable = await isCostingServerAvailable();
     if (!serverAvailable) {
-      console.warn("⚠️  Costing server not available - skipping integration tests");
+      console.warn(
+        "⚠️  Costing server not available - skipping integration tests",
+      );
     }
   });
 
@@ -110,9 +119,13 @@ describe("adapter integration tests", () => {
 
       const source: NetworkSource = { type: "data", network };
 
-      const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
-        libraryId: LIBRARY_ID,
-      });
+      const { request, assetMetadata } = await transformNetworkToCostingRequest(
+        source,
+        "v1.0-costing",
+        {
+          libraryId: LIBRARY_ID,
+        },
+      );
 
       expect(request.assets.length).toBe(1);
       expect(request.assets[0].cost_items.length).toBe(1);
@@ -121,15 +134,25 @@ describe("adapter integration tests", () => {
       const costingResponse = await callCostingServer(request);
 
       // Transform response
-      const result = transformCostingResponse(costingResponse, assetMetadata, "EUR");
+      const result = transformCostingResponse(
+        costingResponse,
+        assetMetadata,
+        "EUR",
+      );
 
       // Expected values from e2e test (in EUR)
       const expectedDirectEquipment = parseEurAmount("€1,012,452.60");
       const expectedTotalInstalled = parseEurAmount("€3,796,697.23");
 
       expect(result.assets.length).toBe(1);
-      expect(result.assets[0].lifetimeCosts.directEquipmentCost).toBeCloseTo(expectedDirectEquipment, 0);
-      expect(result.assets[0].lifetimeCosts.totalInstalledCost).toBeCloseTo(expectedTotalInstalled, 0);
+      expect(result.assets[0].lifetimeCosts.directEquipmentCost).toBeCloseTo(
+        expectedDirectEquipment,
+        0,
+      );
+      expect(result.assets[0].lifetimeCosts.totalInstalledCost).toBeCloseTo(
+        expectedTotalInstalled,
+        0,
+      );
     });
   });
 
@@ -176,24 +199,37 @@ describe("adapter integration tests", () => {
 
       const source: NetworkSource = { type: "data", network };
 
-      const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
-        libraryId: LIBRARY_ID,
-      });
+      const { request, assetMetadata } = await transformNetworkToCostingRequest(
+        source,
+        "v1.0-costing",
+        {
+          libraryId: LIBRARY_ID,
+        },
+      );
 
       expect(request.assets.length).toBe(1);
       // Should now have 2 cost items: one for compressor (Item 007), one for cooler (Item 008)
       expect(request.assets[0].cost_items.length).toBe(2);
 
       const costingResponse = await callCostingServer(request);
-      const result = transformCostingResponse(costingResponse, assetMetadata, "EUR");
+      const result = transformCostingResponse(
+        costingResponse,
+        assetMetadata,
+        "EUR",
+      );
 
       // Log for comparison - e2e expects €598,507,194.81
-      console.log(`LP Compression direct equipment: €${result.assets[0].lifetimeCosts.directEquipmentCost.toLocaleString()}`);
+      console.log(
+        `LP Compression direct equipment: €${result.assets[0].lifetimeCosts.directEquipmentCost.toLocaleString()}`,
+      );
       console.log(`Expected (e2e): €598,507,194.81`);
 
       // Verify we get the expected cost
       const expectedDirectEquipment = parseEurAmount("€598,507,194.81");
-      expect(result.assets[0].lifetimeCosts.directEquipmentCost).toBeCloseTo(expectedDirectEquipment, 0);
+      expect(result.assets[0].lifetimeCosts.directEquipmentCost).toBeCloseTo(
+        expectedDirectEquipment,
+        0,
+      );
     });
   });
 
@@ -262,22 +298,41 @@ describe("adapter integration tests", () => {
 
       const source: NetworkSource = { type: "data", network };
 
-      const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
-        libraryId: LIBRARY_ID,
-      });
+      const { request, assetMetadata } = await transformNetworkToCostingRequest(
+        source,
+        "v1.0-costing",
+        {
+          libraryId: LIBRARY_ID,
+        },
+      );
 
-      console.log("Multi-asset chain - Assets generated:", request.assets.length);
-      console.log("Multi-asset chain - Asset IDs:", request.assets.map((a) => a.id));
+      console.log(
+        "Multi-asset chain - Assets generated:",
+        request.assets.length,
+      );
+      console.log(
+        "Multi-asset chain - Asset IDs:",
+        request.assets.map((a) => a.id),
+      );
 
       expect(request.assets.length).toBe(3);
 
       const costingResponse = await callCostingServer(request);
-      const result = transformCostingResponse(costingResponse, assetMetadata, "EUR");
+      const result = transformCostingResponse(
+        costingResponse,
+        assetMetadata,
+        "EUR",
+      );
 
       // Log results
-      console.log("Network total direct equipment:", `€${result.lifetimeCosts.directEquipmentCost.toLocaleString()}`);
+      console.log(
+        "Network total direct equipment:",
+        `€${result.lifetimeCosts.directEquipmentCost.toLocaleString()}`,
+      );
       for (const asset of result.assets) {
-        console.log(`  ${asset.id}: €${asset.lifetimeCosts.directEquipmentCost.toLocaleString()}`);
+        console.log(
+          `  ${asset.id}: €${asset.lifetimeCosts.directEquipmentCost.toLocaleString()}`,
+        );
       }
 
       // Verify structure
@@ -437,18 +492,28 @@ describe("adapter integration tests", () => {
 
       const source: NetworkSource = { type: "data", network };
 
-      const { request, assetMetadata } = await transformNetworkToCostingRequest(source, {
-        libraryId: LIBRARY_ID,
-      });
+      const { request, assetMetadata } = await transformNetworkToCostingRequest(
+        source,
+        "v1.0-costing",
+        {
+          libraryId: LIBRARY_ID,
+        },
+      );
 
       console.log("\n=== Inline Data Test (with unit strings) ===");
       console.log("Assets generated:", request.assets.length);
 
       // Call costing server
       const costingResponse = await callCostingServer(request);
-      const result = transformCostingResponse(costingResponse, assetMetadata, "EUR");
+      const result = transformCostingResponse(
+        costingResponse,
+        assetMetadata,
+        "EUR",
+      );
 
-      console.log(`Network Total Direct Equipment: €${result.lifetimeCosts.directEquipmentCost.toLocaleString()}`);
+      console.log(
+        `Network Total Direct Equipment: €${result.lifetimeCosts.directEquipmentCost.toLocaleString()}`,
+      );
 
       // Results should match the path-based test
       expect(result.assets.length).toBeGreaterThan(0);

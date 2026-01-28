@@ -3,7 +3,7 @@ type = "branch"
 label = "Branch 1"
 length = "10 km"
 diameter = "24 in"
-uValue = "0.03 W / m² * K"
+uValue = "0.03 W/m²*K"
 ambientTemperature = "20 °C"
 
 [position]

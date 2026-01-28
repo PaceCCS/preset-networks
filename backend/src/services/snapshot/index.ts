@@ -25,7 +25,6 @@ export {
 
 // Adapter
 export {
-  transformToScenarioRequest,
   transformScenarioResponse,
   isScenarioOk,
   buildConditionKey,
@@ -40,7 +39,6 @@ export {
 // Network Adapter
 export {
   transformNetworkToSnapshotConditions,
-  type NetworkSource,
   type NetworkData,
   type NetworkGroup,
   type NetworkBranch,

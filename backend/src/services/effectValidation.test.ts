@@ -11,7 +11,7 @@ const PipeSchema = Schema.Struct({
       dimension: "length",
       defaultUnit: "m",
       title: "Length",
-    })
+    }),
   ),
   diameter: Schema.optional(
     Schema.Number.pipe(
@@ -20,18 +20,18 @@ const PipeSchema = Schema.Struct({
         dimension: "length",
         defaultUnit: "m",
         title: "Diameter",
-      })
-    )
+      }),
+    ),
   ),
   uValue: Schema.optional(
     Schema.Number.pipe(
       Schema.greaterThan(0),
       Schema.annotations({
         dimension: "uValue",
-        defaultUnit: "W/m²K",
+        defaultUnit: "W/m²*K",
         title: "U-Value",
-      })
-    )
+      }),
+    ),
   ),
 });
 
@@ -41,7 +41,7 @@ vi.mock("../../pkg/dagger.js", () => {
     query_from_files(
       filesJson: string,
       configContent: string | undefined,
-      query: string
+      query: string,
     ) {
       // Mock query responses
       if (query === "branch-2/blocks") {
@@ -79,7 +79,7 @@ vi.mock("fs/promises", () => ({
     Promise.resolve([
       { name: "branch-2.toml", isFile: () => true },
       { name: "config.toml", isFile: () => true },
-    ])
+    ]),
   ),
   readFile: vi.fn((path: string) => {
     if (path.includes("branch-2.toml")) {
@@ -167,6 +167,7 @@ vi.mock("path", () => ({
   resolve: vi.fn((...args: string[]) => args.join("/")),
   join: vi.fn((...args: string[]) => args.join("/")),
   normalize: vi.fn((p: string) => p),
+  isAbsolute: vi.fn((p: string) => p.startsWith("/")),
 }));
 
 // Import after mocks are set up
@@ -188,7 +189,7 @@ describe("effectValidation", () => {
       const result = await validateQueryBlocks(
         "networks/preset1",
         "branch-2/blocks",
-        "v1.0"
+        "v1.0",
       );
 
       expect(result).toBeDefined();
@@ -214,7 +215,7 @@ describe("effectValidation", () => {
       const result = await validateQueryBlocks(
         "networks/preset1",
         "branch-2/blocks",
-        "v1.0"
+        "v1.0",
       );
 
       // Should have validation results
@@ -231,7 +232,10 @@ describe("effectValidation", () => {
 
   describe("validateNetworkBlocks", () => {
     it("should validate all blocks in a network", async () => {
-      const result = await validateNetworkBlocks("networks/preset1", "v1.0");
+      const result = await validateNetworkBlocks(
+        { type: "networkId", networkId: "networks/preset1" },
+        "v1.0"
+      );
 
       expect(result).toBeDefined();
       expect(typeof result).toBe("object");

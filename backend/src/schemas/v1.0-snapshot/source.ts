@@ -8,7 +8,7 @@ export const SourceSchema = Schema.Struct({
     Schema.greaterThan(0),
     Schema.annotations({
       dimension: "massFlowrate",
-      defaultUnit: "Mt/a",
+      defaultUnit: "mtpa",
       title: "Flowrate",
     }),
   ),

@@ -8,10 +8,10 @@ import * as path from "path";
 import * as fs from "fs/promises";
 import { resolveNetworkPath } from "../../utils/network-path";
 import {
-  createNetworkContext,
-  getEnrichedBlockFromSchema,
-  type NetworkContext,
+  getEnrichedBlockFromValidation,
   type Block,
+  validateNetworkBlocks,
+  type NetworkSource,
 } from "../effectValidation";
 import dim from "../dim";
 import { getDagger } from "../../utils/getDagger";
@@ -20,10 +20,6 @@ import { Conditions, UnitValue } from "./types";
 // ============================================================================
 // Types
 // ============================================================================
-
-export type NetworkSource =
-  | { type: "networkId"; networkId: string }
-  | { type: "data"; network: NetworkData };
 
 export type NetworkData = {
   groups: NetworkGroup[];
@@ -504,7 +500,7 @@ function extractBlockConditions(
   const requiredProps = COMPONENT_REQUIRED_PROPERTIES[componentType] || [];
   const defaults = DEFAULT_VALUES[componentType] || {};
   const conditions: ExtractedCondition[] = [];
-  const sourceBlockId = `${branchId}/blocks/${blockIndex}`;
+  const sourceBlockId = `${branchId}_blocks_${blockIndex}`;
 
   for (const propDef of requiredProps) {
     const key = `${componentType}|${componentId}|${propDef.property}`;
@@ -606,24 +602,17 @@ export async function transformNetworkToSnapshotConditions(
   schemaSet: string = "v1.0-snapshot",
   baseNetworkId?: string,
 ): Promise<SnapshotTransformResult> {
-  // Ensure dim is initialized for unit conversions
   await dim.init();
 
-  const { data: networkData, networkPath } = await loadNetworkData(source);
+  const { data: networkData } = await loadNetworkData(source);
   const { branches } = networkData;
 
-  // For inline data with a baseNetworkId, load the base network with full inheritance
-  // Then overlay the inline data on top
-  let ctx: NetworkContext | null = null;
-  let baseNetworkPath: string | null = networkPath;
-
-  if (!networkPath && baseNetworkId) {
-    // Load base network for inheritance
-    baseNetworkPath = resolveNetworkPath(baseNetworkId);
-    ctx = await createNetworkContext(baseNetworkPath);
-  } else if (networkPath) {
-    ctx = await createNetworkContext(networkPath);
-  }
+  // Validate all blocks and get resolved properties (with inheritance)
+  const validationResults = await validateNetworkBlocks(
+    source,
+    schemaSet,
+    baseNetworkId,
+  );
 
   const componentValidations: ComponentValidation[] = [];
   const conditions: Conditions = {};
@@ -640,27 +629,17 @@ export async function transformNetworkToSnapshotConditions(
         continue;
       }
 
-      // Get enriched block with inherited properties
-      let block: NetworkBlock;
-      if (ctx) {
-        // Use schema context to get fully inherited properties
-        const enriched = getEnrichedBlockFromSchema(
-          rawBlock as Block,
-          branch.id,
-          i,
-          schemaSet,
-          ctx,
-        );
-        // Overlay any explicit properties from the inline data on top
-        block = { ...enriched, ...rawBlock } as NetworkBlock;
-      } else {
-        // No context available - use raw block as-is
-        block = rawBlock;
-      }
+      // Get enriched block with inherited properties from validation results
+      const enrichedBlock = getEnrichedBlockFromValidation(
+        rawBlock as Block,
+        validationResults,
+        branch.id,
+        i,
+      );
 
-      const componentId = getComponentId(block, branch.id, i);
+      const componentId = getComponentId(enrichedBlock, branch.id, i);
       const validation = extractBlockConditions(
-        block,
+        enrichedBlock,
         componentType,
         componentId,
         branch.id,

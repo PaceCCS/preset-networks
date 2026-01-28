@@ -24,7 +24,7 @@ export const PipeSchema = Schema.Struct({
     Schema.greaterThan(0),
     Schema.annotations({
       dimension: "uValue",
-      defaultUnit: "W/m²K",
+      defaultUnit: "W/m²*K",
       title: "U-Value",
     }),
   ),
