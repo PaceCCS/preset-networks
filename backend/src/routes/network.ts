@@ -11,8 +11,7 @@ import { resolveNetworkPath } from "../utils/network-path";
 export const networkRoutes = new Hono();
 
 /**
- * Define available networks
- * This is the source of truth for which networks are available via the API
+ * Define which networks are available via the API
  * Labels are defined in each network's config.toml
  */
 const AVAILABLE_NETWORKS = ["preset1", "simple-snapshot"] as const;

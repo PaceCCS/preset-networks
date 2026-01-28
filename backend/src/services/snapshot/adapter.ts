@@ -5,20 +5,18 @@
  * and the Scenario Modeller API format.
  */
 
-import type {
-  ScenarioRequest,
-  ScenarioOkResponse,
-  ScenarioFailResponse,
-  Conditions,
-  UnitValue,
-  SnapshotResponse,
+import { SnapshotRequestInput } from "./schemas";
+import {
   ComponentResult,
+  Conditions,
   FluidProperties,
-  Composition,
-  MixtureComponent,
   Power,
+  ScenarioFailResponse,
+  ScenarioOkResponse,
+  ScenarioRequest,
+  SnapshotResponse,
+  UnitValue,
 } from "./types";
-import type { SnapshotRequestInput, ConditionsInput } from "./schemas";
 
 // ============================================================================
 // Constants
@@ -36,7 +34,7 @@ const FIELD_ID_SEPARATOR = "|";
  */
 export function transformToScenarioRequest(
   input: SnapshotRequestInput,
-  baseConditions?: Conditions
+  baseConditions?: Conditions,
 ): ScenarioRequest {
   let conditions: Conditions;
 
@@ -64,7 +62,7 @@ export function transformToScenarioRequest(
  * Check if a response is successful.
  */
 export function isScenarioOk(
-  response: ScenarioOkResponse | ScenarioFailResponse
+  response: ScenarioOkResponse | ScenarioFailResponse,
 ): response is ScenarioOkResponse {
   return "data" in response && response.data !== undefined;
 }
@@ -73,7 +71,7 @@ export function isScenarioOk(
  * Transform the Scenario Modeller response to our format.
  */
 export function transformScenarioResponse(
-  response: ScenarioOkResponse | ScenarioFailResponse
+  response: ScenarioOkResponse | ScenarioFailResponse,
 ): SnapshotResponse {
   if (!isScenarioOk(response)) {
     return {
@@ -118,10 +116,13 @@ function parseKey(key: string): {
  * Group flat response data by component.
  */
 function groupDataByComponent(
-  data: Record<string, UnitValue>
+  data: Record<string, UnitValue>,
 ): ComponentResult[] {
   // Group by component (type + id)
-  const componentMap = new Map<string, { type: string; id: string; properties: Record<string, UnitValue> }>();
+  const componentMap = new Map<
+    string,
+    { type: string; id: string; properties: Record<string, UnitValue> }
+  >();
 
   for (const [key, value] of Object.entries(data)) {
     const parsed = parseKey(key);
@@ -146,7 +147,7 @@ function groupDataByComponent(
     const result = transformComponentProperties(
       component.id,
       component.type,
-      component.properties
+      component.properties,
     );
     results.push(result);
   }
@@ -160,7 +161,7 @@ function groupDataByComponent(
 function transformComponentProperties(
   id: string,
   type: string,
-  properties: Record<string, UnitValue>
+  properties: Record<string, UnitValue>,
 ): ComponentResult {
   const result: ComponentResult = {
     id,
@@ -200,7 +201,7 @@ function transformComponentProperties(
  */
 function extractFluidProperties(
   properties: Record<string, UnitValue>,
-  prefix: string
+  prefix: string,
 ): FluidProperties {
   const fluid: FluidProperties = {};
 
@@ -337,7 +338,7 @@ function extractNumber(value: UnitValue, key: string): number | undefined {
 export function buildConditionKey(
   componentType: string,
   componentId: string,
-  property: string
+  property: string,
 ): string {
   return `${componentType}${FIELD_TYPE_SEPARATOR}${componentId}${FIELD_ID_SEPARATOR}${property}`;
 }

@@ -1,88 +1,24 @@
 import { Hono } from "hono";
 import { Either } from "effect";
 import * as S from "effect/Schema";
-import {
-  transformScenarioResponse,
-  type ScenarioRequest,
-  type ScenarioOkResponse,
-  type ScenarioFailResponse,
-} from "../services/snapshot";
+import { NetworkSource } from "../services/costing";
 import {
   transformNetworkToSnapshotConditions,
-  type NetworkSource,
-} from "../services/snapshot/network-adapter";
+  ScenarioRequest,
+  ScenarioOkResponse,
+  ScenarioFailResponse,
+  transformScenarioResponse,
+} from "../services/snapshot";
+import {
+  SnapshotValidateRequestSchema,
+  SnapshotRunRequestSchema,
+} from "../services/snapshot/schemas";
 
 export const snapshotRoutes = new Hono();
 
 // Default snapshot server URL (Scenario Modeller API)
 const SNAPSHOT_SERVER_URL =
   process.env.SNAPSHOT_SERVER_URL || "http://localhost:5000";
-
-// ============================================================================
-// Request Schemas
-// ============================================================================
-
-const NetworkBlockSchema = S.mutable(
-  S.Struct({
-    type: S.String,
-    quantity: S.optional(S.Number),
-  }).pipe(S.extend(S.Record({ key: S.String, value: S.Unknown }))),
-);
-
-const NetworkBranchSchema = S.mutable(
-  S.Struct({
-    id: S.String,
-    label: S.optional(S.String),
-    parentId: S.optional(S.String),
-    blocks: S.mutable(S.Array(NetworkBlockSchema)),
-  }),
-);
-
-const NetworkGroupSchema = S.mutable(
-  S.Struct({
-    id: S.String,
-    label: S.optional(S.String),
-    branchIds: S.mutable(S.Array(S.String)),
-  }),
-);
-
-const NetworkDataSchema = S.mutable(
-  S.Struct({
-    groups: S.mutable(S.Array(NetworkGroupSchema)),
-    branches: S.mutable(S.Array(NetworkBranchSchema)),
-  }),
-);
-
-const DataSourceSchema = S.mutable(
-  S.Struct({
-    type: S.Literal("data"),
-    network: NetworkDataSchema,
-  }),
-);
-
-const NetworkIdSourceSchema = S.Struct({
-  type: S.Literal("networkId"),
-  networkId: S.String,
-});
-
-const NetworkSourceSchema = S.Union(DataSourceSchema, NetworkIdSourceSchema);
-
-const ConditionsSchema = S.Record({
-  key: S.String,
-  value: S.Record({ key: S.String, value: S.Union(S.Number, S.Boolean) }),
-});
-
-const SnapshotRunRequestSchema = S.Struct({
-  source: NetworkSourceSchema,
-  baseNetworkId: S.optional(S.String),
-  conditionOverrides: S.optional(ConditionsSchema),
-  includeAllPipes: S.optional(S.Boolean),
-});
-
-const SnapshotValidateRequestSchema = S.Struct({
-  source: NetworkSourceSchema,
-  baseNetworkId: S.optional(S.String),
-});
 
 // ============================================================================
 // Validation Helper

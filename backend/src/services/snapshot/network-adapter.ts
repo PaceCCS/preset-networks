@@ -7,7 +7,6 @@
 import * as path from "path";
 import * as fs from "fs/promises";
 import { resolveNetworkPath } from "../../utils/network-path";
-import type { Conditions, UnitValue } from "./types";
 import {
   createNetworkContext,
   getEnrichedBlockFromSchema,
@@ -16,6 +15,7 @@ import {
 } from "../effectValidation";
 import dim from "../dim";
 import { getDagger } from "../../utils/getDagger";
+import { Conditions, UnitValue } from "./types";
 
 // ============================================================================
 // Types
@@ -137,7 +137,11 @@ const COMPONENT_REQUIRED_PROPERTIES: Record<
     { property: "temperature", unit: "celsius", required: true },
     { property: "enabled", unit: "boolean", required: false },
     // Composition fractions - these are optional but commonly used
-    { property: "carbonDioxideFraction", unit: "molFraction", required: false },
+    {
+      property: "carbonDioxideFraction",
+      unit: "molFraction",
+      required: false,
+    },
     { property: "nitrogenFraction", unit: "molFraction", required: false },
     { property: "waterFraction", unit: "molFraction", required: false },
     {

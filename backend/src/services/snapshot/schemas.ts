@@ -31,6 +31,70 @@ export const ConditionsSchema = S.Record({
 });
 
 // ============================================================================
+// Request Schemas
+// ============================================================================
+
+export const NetworkBlockSchema = S.mutable(
+  S.Struct({
+    type: S.String,
+    quantity: S.optional(S.Number),
+  }).pipe(S.extend(S.Record({ key: S.String, value: S.Unknown }))),
+);
+
+export const NetworkBranchSchema = S.mutable(
+  S.Struct({
+    id: S.String,
+    label: S.optional(S.String),
+    parentId: S.optional(S.String),
+    blocks: S.mutable(S.Array(NetworkBlockSchema)),
+  }),
+);
+
+export const NetworkGroupSchema = S.mutable(
+  S.Struct({
+    id: S.String,
+    label: S.optional(S.String),
+    branchIds: S.mutable(S.Array(S.String)),
+  }),
+);
+
+export const NetworkDataSchema = S.mutable(
+  S.Struct({
+    groups: S.mutable(S.Array(NetworkGroupSchema)),
+    branches: S.mutable(S.Array(NetworkBranchSchema)),
+  }),
+);
+
+export const DataSourceSchema = S.mutable(
+  S.Struct({
+    type: S.Literal("data"),
+    network: NetworkDataSchema,
+  }),
+);
+
+export const NetworkIdSourceSchema = S.Struct({
+  type: S.Literal("networkId"),
+  networkId: S.String,
+});
+
+export const NetworkSourceSchema = S.Union(
+  DataSourceSchema,
+  NetworkIdSourceSchema,
+);
+
+export const SnapshotRunRequestSchema = S.Struct({
+  source: NetworkSourceSchema,
+  baseNetworkId: S.optional(S.String),
+  conditionOverrides: S.optional(ConditionsSchema),
+  includeAllPipes: S.optional(S.Boolean),
+});
+
+export const SnapshotValidateRequestSchema = S.Struct({
+  source: NetworkSourceSchema,
+  baseNetworkId: S.optional(S.String),
+});
+
+// ============================================================================
 // Network Structure Schemas (optional)
 // ============================================================================
 
@@ -38,12 +102,14 @@ export const SubnetStructureSchema = S.Struct({
   subnetName: S.optional(S.String),
   downstreamSubnetName: S.optional(S.String),
   componentSeriesMap: S.optional(
-    S.Record({ key: S.String, value: S.Array(S.String) })
+    S.Record({ key: S.String, value: S.Array(S.String) }),
   ),
 });
 
 export const NetworkStructureSchema = S.Struct({
-  subnets: S.optional(S.Record({ key: S.String, value: SubnetStructureSchema })),
+  subnets: S.optional(
+    S.Record({ key: S.String, value: SubnetStructureSchema }),
+  ),
   componentYamlFilenames: S.optional(S.Array(S.String)),
 });
 
@@ -76,12 +142,16 @@ export const NetworkSnapshotRequestSchema = S.Struct({
  */
 export const SnapshotRequestSchema = S.Union(
   DirectSnapshotRequestSchema,
-  NetworkSnapshotRequestSchema
+  NetworkSnapshotRequestSchema,
 );
 
 // Infer types from schemas
-export type DirectSnapshotRequestInput = S.Schema.Type<typeof DirectSnapshotRequestSchema>;
-export type NetworkSnapshotRequestInput = S.Schema.Type<typeof NetworkSnapshotRequestSchema>;
+export type DirectSnapshotRequestInput = S.Schema.Type<
+  typeof DirectSnapshotRequestSchema
+>;
+export type NetworkSnapshotRequestInput = S.Schema.Type<
+  typeof NetworkSnapshotRequestSchema
+>;
 export type SnapshotRequestInput = S.Schema.Type<typeof SnapshotRequestSchema>;
 export type ConditionsInput = S.Schema.Type<typeof ConditionsSchema>;
 
@@ -101,7 +171,7 @@ export type ValidationError = {
  */
 export function validateRequest<A, I>(
   schema: S.Schema<A, I>,
-  data: unknown
+  data: unknown,
 ): Either.Either<A, ValidationError[]> {
   const result = S.decodeUnknownEither(schema)(data);
 
