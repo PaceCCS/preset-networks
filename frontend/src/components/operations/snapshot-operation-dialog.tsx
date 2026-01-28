@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Collapsible,
   CollapsibleContent,
@@ -32,6 +33,15 @@ import {
 } from "@/lib/operations";
 import { getNetworkSourceFromCollections } from "@/lib/collections/flow";
 
+/**
+ * Default values for network-level runtime parameters (temperatures in Celsius).
+ */
+const DEFAULT_NETWORK_PARAMS = {
+  airMedium: 29,
+  soilMedium: 25,
+  waterMedium: 20,
+};
+
 type SnapshotOperationDialogProps = {
   networkPath: string;
   health?: HealthStatus;
@@ -49,6 +59,15 @@ export function SnapshotOperationDialog({
   const [result, setResult] = useState<SnapshotResponse | null>(null);
   const [networkSource, setNetworkSource] = useState<NetworkSource | null>(
     null,
+  );
+
+  // Network-level runtime parameters
+  const [airMedium, setAirMedium] = useState(DEFAULT_NETWORK_PARAMS.airMedium);
+  const [soilMedium, setSoilMedium] = useState(
+    DEFAULT_NETWORK_PARAMS.soilMedium,
+  );
+  const [waterMedium, setWaterMedium] = useState(
+    DEFAULT_NETWORK_PARAMS.waterMedium,
   );
 
   // Load network data from collections on mount
@@ -80,7 +99,11 @@ export function SnapshotOperationDialog({
       if (!networkSource) {
         throw new Error("Network data not loaded");
       }
-      return runSnapshot(networkSource, includeAllPipes, networkPath);
+      return runSnapshot(networkSource, includeAllPipes, networkPath, {
+        airMedium,
+        soilMedium,
+        waterMedium,
+      });
     },
     onSuccess: (data) => {
       setResult(data);
@@ -103,6 +126,60 @@ export function SnapshotOperationDialog({
       ) : validation ? (
         <ValidationSummarySection validation={validation} />
       ) : null}
+
+      {/* Network Runtime Parameters */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Environment Parameters</h4>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label htmlFor="airMedium" className="text-xs font-medium">
+              Air Temperature
+            </label>
+            <div className="flex items-center gap-1">
+              <Input
+                id="airMedium"
+                type="number"
+                value={airMedium}
+                onChange={(e) => setAirMedium(parseFloat(e.target.value) || 0)}
+                className="h-8 text-sm"
+              />
+              <span className="text-xs text-muted-foreground">°C</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="soilMedium" className="text-xs font-medium">
+              Soil Temperature
+            </label>
+            <div className="flex items-center gap-1">
+              <Input
+                id="soilMedium"
+                type="number"
+                value={soilMedium}
+                onChange={(e) => setSoilMedium(parseFloat(e.target.value) || 0)}
+                className="h-8 text-sm"
+              />
+              <span className="text-xs text-muted-foreground">°C</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="waterMedium" className="text-xs font-medium">
+              Water Temperature
+            </label>
+            <div className="flex items-center gap-1">
+              <Input
+                id="waterMedium"
+                type="number"
+                value={waterMedium}
+                onChange={(e) =>
+                  setWaterMedium(parseFloat(e.target.value) || 0)
+                }
+                className="h-8 text-sm"
+              />
+              <span className="text-xs text-muted-foreground">°C</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Include All Pipes Toggle */}
       <label className="flex items-center gap-2 text-sm">

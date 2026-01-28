@@ -82,10 +82,24 @@ export const NetworkSourceSchema = S.Union(
   NetworkIdSourceSchema,
 );
 
+/**
+ * Network-level runtime parameters (temperatures in Celsius).
+ */
+export const NetworkConditionsSchema = S.Struct({
+  airMedium: S.optional(S.Number),
+  soilMedium: S.optional(S.Number),
+  waterMedium: S.optional(S.Number),
+});
+
+export type NetworkConditionsInput = S.Schema.Type<
+  typeof NetworkConditionsSchema
+>;
+
 export const SnapshotRunRequestSchema = S.Struct({
   source: NetworkSourceSchema,
   baseNetworkId: S.optional(S.String),
   includeAllPipes: S.optional(S.Boolean),
+  networkConditions: S.optional(NetworkConditionsSchema),
 });
 
 export const SnapshotValidateRequestSchema = S.Struct({

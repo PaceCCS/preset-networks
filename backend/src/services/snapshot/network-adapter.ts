@@ -109,6 +109,7 @@ export type Subnet = {
  */
 export type NetworkStructure = {
   subnets: Record<string, Subnet>;
+  componentYamlFilenames: string[];
 };
 
 /**
@@ -448,6 +449,28 @@ const UNIT_KEY_TO_DIM: Record<string, string> = {
 };
 
 /**
+ * Target units for series component properties (for Scenario Modeller).
+ * Maps property names to their target unit (dim format).
+ */
+const SERIES_TARGET_UNITS: Record<string, string> = {
+  elevation: "m",
+  pressure: "Pa",
+  temperature: "K",
+  flowrate: "kg/s",
+  length: "m",
+  diameter: "m",
+  uValue: "W/m^2*K",
+  ambientTemperature: "K",
+  outletTemperature: "K",
+  maximumOperatingTemperature: "K",
+  pressureDelta: "Pa",
+  minimumPressure: "Pa",
+  minimumUpstreamPressure: "Pa",
+  maximumPressure: "Pa",
+  maximumOutletPressure: "Pa",
+};
+
+/**
  * Convert a block property value to a snapshot unit value using dim for unit conversion.
  */
 function convertToUnitValue(value: unknown, unit: string): UnitValue | null {
@@ -668,8 +691,71 @@ function buildComponentSeriesMap(branchId: string): Record<string, string[]> {
 }
 
 /**
+ * Convert a value to its target unit for series components.
+ * Returns a number in the target unit, or the original value if no conversion needed.
+ */
+function convertToTargetUnit(
+  value: unknown,
+  propertyName: string,
+): number | boolean | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  // Boolean properties - pass through
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  // Already a number - check if needs conversion
+  if (typeof value === "number") {
+    return value;
+  }
+
+  // String value - convert using dim
+  if (typeof value === "string") {
+    const targetUnit = SERIES_TARGET_UNITS[propertyName];
+
+    // If no target unit defined, try to extract numeric value
+    if (!targetUnit) {
+      const match = value.match(/^([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/);
+      if (match) {
+        return parseFloat(match[1]);
+      }
+      return null;
+    }
+
+    // Use dim to convert to target unit
+    try {
+      const conversionExpr = `${value} as ${targetUnit}`;
+      const result = dim.eval(conversionExpr);
+      // Result is like "3500000 Pa" - extract numeric part
+      const numValue = parseFloat(result.split(" ")[0]);
+      if (!isNaN(numValue)) {
+        return numValue;
+      }
+    } catch (error) {
+      console.warn(
+        `[Snapshot] Failed to convert "${value}" to ${targetUnit} for ${propertyName}:`,
+        error,
+      );
+    }
+
+    // Fallback: extract numeric value
+    const match = value.match(/^([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/);
+    if (match) {
+      return parseFloat(match[1]);
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
  * Convert enriched block properties to series component format.
  * Maps block properties to the expected Scenario Modeller format.
+ * Property values are converted to target units (numbers).
  */
 function blockToSeriesComponent(
   block: NetworkBlock,
@@ -681,7 +767,7 @@ function blockToSeriesComponent(
     name: block.label || componentId,
   };
 
-  // Copy relevant properties from the block
+  // Copy relevant properties from the block, converting to target units
   // These are the properties that the Scenario Modeller expects
   const propertiesToCopy = [
     "elevation",
@@ -719,7 +805,10 @@ function blockToSeriesComponent(
 
   for (const prop of propertiesToCopy) {
     if (block[prop] !== undefined && block[prop] !== null) {
-      component[prop] = block[prop];
+      const convertedValue = convertToTargetUnit(block[prop], prop);
+      if (convertedValue !== null) {
+        component[prop] = convertedValue;
+      }
     }
   }
 
@@ -809,9 +898,7 @@ export async function transformNetworkToSnapshotConditions(
       }
     }
 
-    // Build series for this branch
-    const branchLabel = branch.label || branch.id;
-    series[branchLabel] = branchComponents;
+    series[branch.id] = branchComponents;
 
     // Build subnet for this branch
     const downstreamBranchId = downstreamMap.get(branch.id) || "";
@@ -843,10 +930,11 @@ export async function transformNetworkToSnapshotConditions(
 
   return {
     conditions,
+    series,
     networkStructure: {
       subnets,
+      componentYamlFilenames: [],
     },
-    series,
     validation: {
       isReady: extractedConditions > 0 && !hasCriticalMissing,
       summary: {

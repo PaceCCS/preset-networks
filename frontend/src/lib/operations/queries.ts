@@ -350,16 +350,27 @@ export async function validateSnapshotNetwork(
 }
 
 /**
+ * Network-level runtime parameters for snapshot simulation.
+ */
+export type NetworkConditions = {
+  airMedium?: number; // Celsius
+  soilMedium?: number; // Celsius
+  waterMedium?: number; // Celsius
+};
+
+/**
  * Run a snapshot simulation for a network.
  * Conditions are automatically extracted from the network.
  * @param source - Network source (networkId or inline data from collections)
  * @param includeAllPipes - Whether to include all pipe segments in response
  * @param baseNetworkId - Optional networkId for inheritance when source is inline data
+ * @param networkConditions - Optional network-level runtime parameters
  */
 export async function runSnapshot(
   source: NetworkSource,
   includeAllPipes?: boolean,
   baseNetworkId?: string,
+  networkConditions?: NetworkConditions,
 ): Promise<SnapshotResponse> {
   const baseUrl = getApiBaseUrl();
 
@@ -367,6 +378,7 @@ export async function runSnapshot(
     source,
     baseNetworkId,
     includeAllPipes,
+    networkConditions,
   };
 
   const response = await fetch(`${baseUrl}/api/operations/snapshot/run`, {

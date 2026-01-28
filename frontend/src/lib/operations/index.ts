@@ -73,4 +73,6 @@ export {
   // Snapshot Query options
   snapshotValidationQueryOptions,
   snapshotHealthQueryOptions,
+  // Snapshot types
+  type NetworkConditions,
 } from "./queries";

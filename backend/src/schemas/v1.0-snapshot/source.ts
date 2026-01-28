@@ -13,6 +13,15 @@ export const SourceSchema = Schema.Struct({
     }),
   ),
 
+  carbonDioxideFraction: Schema.Number.pipe(
+    Schema.greaterThan(0),
+    Schema.annotations({
+      dimension: "molFraction",
+      defaultUnit: "molFraction",
+      title: "Carbon dioxide fraction",
+    }),
+  ),
+
   pressure: Schema.Number.pipe(
     Schema.greaterThan(0),
     Schema.annotations({

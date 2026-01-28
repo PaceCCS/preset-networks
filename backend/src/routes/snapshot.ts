@@ -106,9 +106,29 @@ snapshotRoutes.post("/run", async (c) => {
       body.baseNetworkId,
     );
 
+    // Add network-level runtime conditions
+    const conditions = { ...transformResult.conditions };
+    if (body.networkConditions) {
+      if (body.networkConditions.airMedium !== undefined) {
+        conditions["network|Network|airMedium"] = {
+          celsius: body.networkConditions.airMedium,
+        };
+      }
+      if (body.networkConditions.soilMedium !== undefined) {
+        conditions["network|Network|soilMedium"] = {
+          celsius: body.networkConditions.soilMedium,
+        };
+      }
+      if (body.networkConditions.waterMedium !== undefined) {
+        conditions["network|Network|waterMedium"] = {
+          celsius: body.networkConditions.waterMedium,
+        };
+      }
+    }
+
     // Build the scenario request with network structure and series
     const scenarioRequest: ScenarioRequest = {
-      conditions: transformResult.conditions,
+      conditions,
       structure: transformResult.networkStructure,
       series: transformResult.series,
       includeAllPipes: body.includeAllPipes,
