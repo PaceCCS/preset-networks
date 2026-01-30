@@ -756,15 +756,20 @@ function convertToTargetUnit(
  * Convert enriched block properties to series component format.
  * Maps block properties to the expected Scenario Modeller format.
  * Property values are converted to target units (numbers).
+ *
+ * Note: The name is set to the branchId (e.g., "branch-1") to enable mapping
+ * response properties back to dagger network elements. The response uses keys
+ * like "reservoir|name|inlet_temperature" where the middle part is the name
+ * from the series.
  */
 function blockToSeriesComponent(
   block: NetworkBlock,
-  componentId: string,
+  branchId: string,
   blockIndex: number,
 ): SeriesComponent {
   const component: SeriesComponent = {
     elem: block.type,
-    name: block.label || componentId,
+    name: branchId,
   };
 
   // Copy relevant properties from the block, converting to target units
@@ -875,9 +880,9 @@ export async function transformNetworkToSnapshotConditions(
 
       const componentId = getComponentId(enrichedBlock, branch.id, i);
 
-      // Add to branch components
+      // Add to branch components (use branch.id as the name for response mapping)
       branchComponents.push(
-        blockToSeriesComponent(enrichedBlock, componentId, i),
+        blockToSeriesComponent(enrichedBlock, branch.id, i),
       );
 
       const validation = extractBlockConditions(
@@ -891,9 +896,12 @@ export async function transformNetworkToSnapshotConditions(
       componentValidations.push(validation);
 
       // Add extracted conditions to the conditions map
-      for (const cond of validation.conditions) {
-        if (cond.value !== null) {
-          conditions[cond.key] = cond.value;
+      // Skip pipe conditions - they are defined in the series structure, not conditions
+      if (componentType !== "pipe") {
+        for (const cond of validation.conditions) {
+          if (cond.value !== null) {
+            conditions[cond.key] = cond.value;
+          }
         }
       }
     }

@@ -13,12 +13,16 @@ import {
   SnapshotValidateRequestSchema,
   SnapshotRunRequestSchema,
 } from "../services/snapshot/schemas";
+import { simpleSnapshotMockResponse } from "../services/snapshot/mocks/simple-snapshot-response";
 
 export const snapshotRoutes = new Hono();
 
 // Default snapshot server URL (Scenario Modeller API)
 const SNAPSHOT_SERVER_URL =
   process.env.SNAPSHOT_SERVER_URL || "http://localhost:5000";
+
+// Enable mock responses when snapshot server is unavailable
+const USE_MOCK_FALLBACK = process.env.SNAPSHOT_USE_MOCK !== "false";
 
 // ============================================================================
 // Validation Helper
@@ -142,6 +146,7 @@ snapshotRoutes.post("/run", async (c) => {
 
     // Call the Scenario Modeller API
     let scenarioResponse: ScenarioOkResponse | ScenarioFailResponse;
+    let usedMock = false;
     try {
       const response = await fetch(`${SNAPSHOT_SERVER_URL}/api/Scenario`, {
         method: "POST",
@@ -165,19 +170,28 @@ snapshotRoutes.post("/run", async (c) => {
 
       scenarioResponse = await response.json();
     } catch (fetchError) {
-      return c.json(
-        {
-          error: "Snapshot server unavailable",
-          message:
-            `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
-            "Ensure the Scenario Modeller server is running.",
-          details:
-            fetchError instanceof Error
-              ? fetchError.message
-              : String(fetchError),
-        },
-        503,
-      );
+      // Use mock response as fallback when server is unavailable
+      if (USE_MOCK_FALLBACK) {
+        console.log(
+          "[Snapshot Run] Server unavailable, using mock response for demo",
+        );
+        scenarioResponse = simpleSnapshotMockResponse;
+        usedMock = true;
+      } else {
+        return c.json(
+          {
+            error: "Snapshot server unavailable",
+            message:
+              `Failed to connect to snapshot server at ${SNAPSHOT_SERVER_URL}. ` +
+              "Ensure the Scenario Modeller server is running.",
+            details:
+              fetchError instanceof Error
+                ? fetchError.message
+                : String(fetchError),
+          },
+          503,
+        );
+      }
     }
 
     // Transform response to our format
@@ -189,6 +203,7 @@ snapshotRoutes.post("/run", async (c) => {
       networkStructure: transformResult.networkStructure,
       series: transformResult.series,
       validation: transformResult.validation,
+      _mock: usedMock,
     });
   } catch (error) {
     console.error("Snapshot run error:", error);

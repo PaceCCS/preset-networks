@@ -55,3 +55,28 @@ Networks are stored in `backend/networks/`. The API uses network names (e.g., `p
 ## Environment Variables
 
 - `PORT` - Server port (default: 3000)
+- `SNAPSHOT_SERVER_URL` - URL of the Scenario Modeller API (default: `http://localhost:5000`)
+- `SNAPSHOT_USE_MOCK` - Enable/disable mock fallback when snapshot server is unavailable (default: `true`). Set to `false` to disable mock responses.
+
+## Snapshot API
+
+The snapshot API (`/api/operations/snapshot/*`) integrates with the Scenario Modeller for flow simulations.
+
+### Mock Mode
+
+When the Scenario Modeller server is unavailable, the API automatically falls back to mock responses for demo purposes. This behavior is controlled by the `SNAPSHOT_USE_MOCK` environment variable.
+
+**Response flag:** When a mock response is used, the response includes `_mock: true` to indicate the data is not from a live simulation.
+
+```json
+{
+  "success": true,
+  "components": [...],
+  "_mock": true
+}
+```
+
+To disable mock fallback and always require the real server:
+```bash
+SNAPSHOT_USE_MOCK=false npm run dev
+```
