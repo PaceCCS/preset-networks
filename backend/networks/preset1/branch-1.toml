@@ -21,6 +21,7 @@ pressure = "100 bar"
 [[block]]
 quantity = 4
 type = "Capture Unit"
+capture_technology = "amine"
 
 [[block]]
 quantity = 1

@@ -6,6 +6,9 @@ height = 550
 
 efficiency = 0.75
 pressure = "100 bar" # ignored
+phase = "gas"
+location = "onshore"
+size = "small"
 
 [position]
 x = 0
