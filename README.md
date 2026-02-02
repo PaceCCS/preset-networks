@@ -36,6 +36,14 @@ just down
 cd local; docker compose --profile dev down && docker compose --profile prod down
 ```
 
+## Network representation
+
+This is built on top of [a tool I made for working with directed graphs](https://github.com/Jerell/dagger). That tool is useful for representing flow networks, because flow networks are directed graphs, but it's a separate thing.
+
+### Directed graphs
+
+Flow networks are best represented as directed graphs, which are naturally capable of representing all network shapes. If an API requires another shape, the directed graph can be transformed as necessary, but the shapes used by our existing APIs to represent networks are not compatible with each other. The directed graph should be seen as the primary form of the network and anything else is a projection of it.
+
 ## Presets
 
 Presets are defined in backend/networks in their own directories. They must be added to `AVAILABLE_NETWORKS` in backend/src/routes/network.ts to be exposed via the API.
@@ -48,6 +56,8 @@ network-name/
 ├── branch-2.toml
 └── ...
 ```
+
+These can be used to define different network configurations.
 
 ### Scope Hierarchy
 
@@ -69,7 +79,7 @@ The file names are used as IDs for nodes in the graph. They do not need to say "
 ```toml
 [properties]
 ambientTemperature = "20.0 C"
-pressure = 14.7
+pressure = 14.7 # as this doesn't have a unit, the default would depend on the schema
 
 [inheritance]
 general = ["block", "branch", "group", "global"]
@@ -102,25 +112,25 @@ The properties in these files are effectively defaults. User inputs will overrid
 
 Units are parsed. [You can write almost whatever you want](https://github.com/Jerell/dim/tree/main/src/registry). Default units will be defined in the schemas.
 
+#### Visuals
+
 Networks can also have image nodes, which need a position, path, width, height and label.
 
+The visual representation of the branch nodes can be tailored to the appication. We might want input fields on the graph itself, or to have a simple diagram of the branch that can be clicked to display information elsewhere.
+
 Geographic nodes are not yet implemented. The plan is for Geographic Anchors to set the anchor coordinates and scale and the Geographic Window to provide a separate window view of the map that may be disconnected from the anchor.
+
+##### Input forms
+
+I'm working towards something like [this](https://x.com/nandafyi/status/2004213111486820795) with the current plan being to display form fields in the flow network elements but that's not a requirement and they can be shown elsewhere. I use that example to show that the contents of the flow network elements can be changed to show the appropriate level of detail.
+
+The form fields will be generated according to the schema required for the operation.
 
 ## Operations
 
 Operations are the things you can do with a network description. The operation registry lists each available operation along with things like the schema for input data and the endpoint to call to perform the calculation or validate the inputs.
 
 Right now the operation selection is done through the sidebar but I imagine we'll have pages where an operation, like `snapshot`, will already be chosen and the user can only interact with the network in `snapshot` related ways.
-
-## Flow network
-
-The flow network is generated according to the preset configuration. All of the current components you in the flow network should be seen as placeholders. They can be replaced easily once we have a more specific idea of what we want.
-
-## Input forms
-
-I'm working towards something like [this](https://x.com/nandafyi/status/2004213111486820795) with the current plan being to display form fields in the flow network elements but that's not a requirement and they can be shown elsewhere. I use that example to show that the contents of the flow network elements can be changed to show the appropriate level of detail.
-
-The form fields will be generated according to the schema required for the operation.
 
 ## Input data schema queries
 
