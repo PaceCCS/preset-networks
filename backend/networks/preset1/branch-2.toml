@@ -3,6 +3,8 @@ type = "branch"
 label = "Branch 2"
 parentId = "group-1"
 
+length = "200 m"
+
 [position]
 x = 400
 y = 100

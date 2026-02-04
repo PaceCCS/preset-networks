@@ -98,6 +98,44 @@ schemaRoutes.get("/network/properties", async (c) => {
 });
 
 /**
+ * POST /api/schema/network/validate
+ * Validate all blocks in inline network data and return validation results.
+ * This is used by the frontend to validate user modifications stored in collections.
+ *
+ * Body:
+ * - network: NetworkData object with groups, branches, and optional defaults
+ * - version: Schema set (required, e.g., "v1.0" or "v1.0-costing")
+ */
+schemaRoutes.post("/network/validate", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { network, version } = body;
+
+    if (!network) {
+      return c.json({ error: "Missing required field: network" }, 400);
+    }
+
+    if (!version) {
+      return c.json({ error: "Missing required field: version" }, 400);
+    }
+
+    const result = await validateNetworkBlocks(
+      { type: "data", network },
+      version
+    );
+    return c.json(result);
+  } catch (error) {
+    return c.json(
+      {
+        error: "Failed to validate network blocks",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+/**
  * GET /api/schema/network/validate
  * Validate all blocks in a network and return both properties and validation results
  * Returns the same flattened format as /api/schema/network but includes validation for each block

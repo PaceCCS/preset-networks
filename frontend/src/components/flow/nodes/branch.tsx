@@ -95,7 +95,7 @@ function BlockForm({
   blockIndex: number;
   block: BranchNodeData["blocks"][0];
 }) {
-  const queryPath = `${branchId}/blocks/${blockIndex}`;
+  const scopePath = `${branchId}/blocks/${blockIndex}`;
   const operationContext = useOperationOptional();
 
   // Extract current values from the block
@@ -117,11 +117,12 @@ function BlockForm({
 
   return (
     <SchemaForm
-      queryPath={queryPath}
+      scope="block"
+      scopePath={scopePath}
       values={initialValues}
       onValuesChange={(values) => {
         // In a real implementation, this would update the collection
-        console.log(`[BlockForm] ${queryPath} values changed:`, values);
+        console.log(`[BlockForm] ${scopePath} values changed:`, values);
       }}
       className="space-y-3"
     />

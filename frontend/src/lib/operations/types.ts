@@ -172,6 +172,8 @@ export type NetworkGroup = {
   id: string;
   label?: string;
   branchIds: string[];
+  /** Group-level properties that can be inherited by branches/blocks */
+  [key: string]: string | number | boolean | string[] | null | undefined;
 };
 
 /**
@@ -180,6 +182,8 @@ export type NetworkGroup = {
 export type NetworkData = {
   groups: NetworkGroup[];
   branches: NetworkBranch[];
+  /** Global defaults that can be inherited by all blocks */
+  defaults?: Record<string, string | number | boolean | null | undefined>;
 };
 
 /**

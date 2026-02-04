@@ -1,27 +1,66 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm } from "@tanstack/react-form";
 import { FieldRenderer } from "./field-renderer";
 import { toFieldApiLike } from "./fields/types";
 import {
-  useSchemaProperties,
-  groupPropertiesByBlock,
-  type PropertyMetadata,
+  useScopedSchemaProperties,
+  useResolvedValues,
+  getResolvedValuesForBlock,
+  type PropertyScope,
+  type AggregatedPropertyMetadata,
 } from "@/hooks/use-schema-properties";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertExprToUnit } from "@/lib/dim/dim";
 
+/**
+ * Validation mode for schema forms.
+ * - "strict": Full validation (required, min/max, enum) - default for block scope
+ * - "relaxed": Skip min/max, required only if universallyRequired - default for outer scopes
+ * - "none": No validation
+ */
+export type ValidationMode = "strict" | "relaxed" | "none";
+
+/**
+ * Context provided to onValuesChange callback for scoped forms.
+ */
+export type ValuesChangeContext = {
+  scope: PropertyScope;
+  scopePath: string;
+  affectedBlockPaths: string[];
+};
+
 export type SchemaFormProps = {
-  /** Query path to the block (e.g., "branch-1/blocks/0") */
-  queryPath: string;
+  /**
+   * Scope level for the form.
+   * - "block": Single block editing (default)
+   * - "branch": Edit defaults for all blocks in a branch
+   * - "group": Edit defaults for all blocks in a group
+   * - "global": Edit defaults for all blocks in the network
+   */
+  scope?: PropertyScope;
+  /**
+   * Path to the scope being edited.
+   * - For "block": "branch-1/blocks/0"
+   * - For "branch": "branch-1"
+   * - For "group": "group-1"
+   * - For "global": "" (empty string)
+   */
+  scopePath: string;
   /** Schema version override (otherwise uses OperationContext) */
   schemaVersion?: string;
   /** Current values for the form fields */
   values?: Record<string, unknown>;
-  /** Callback when form values change */
-  onValuesChange?: (values: Record<string, unknown>) => void;
+  /**
+   * Callback when form values change.
+   * For scoped forms, includes context with affected block paths.
+   */
+  onValuesChange?: (
+    values: Record<string, unknown>,
+    context: ValuesChangeContext
+  ) => void;
   /** Callback when form is submitted */
   onSubmit?: (values: Record<string, unknown>) => void;
   /** Whether to auto-save changes (calls onValuesChange on every change) */
@@ -32,6 +71,35 @@ export type SchemaFormProps = {
   className?: string;
   /** Whether to show loading skeleton */
   showLoadingSkeleton?: boolean;
+  /**
+   * Validation mode. Defaults based on scope:
+   * - "strict" for block scope
+   * - "relaxed" for branch/group/global scope
+   */
+  validationMode?: ValidationMode;
+  /**
+   * Whether to show which blocks are affected by each property.
+   * Defaults to true for non-block scopes, false for block scope.
+   */
+  showAffectedBlocks?: boolean;
+  /** Optional filter to only show properties for specific block types */
+  blockTypeFilter?: string[];
+  /**
+   * Filter to only include properties from specific branches.
+   * Used for group scope to limit to branches within the group.
+   */
+  branchFilter?: string[];
+  /**
+   * Whether to fetch and show resolved/inherited values.
+   * When true, shows inherited values as placeholders and allows clearing to inherit.
+   * Defaults to true for block scope, false for outer scopes.
+   */
+  showInheritedValues?: boolean;
+  /**
+   * Callback when a field is cleared to inherit from parent scope.
+   * Receives the property name that was cleared.
+   */
+  onClearValue?: (propertyName: string) => void;
 };
 
 /**
@@ -42,9 +110,13 @@ export type SchemaFormProps = {
  * - Renders appropriate field components based on property types
  * - Supports auto-save mode for real-time updates
  * - Integrates with TanStack Form for state management
+ * - Supports hierarchical scope editing (block, branch, group, global)
+ * - Aggregates properties across multiple blocks for outer scopes
+ * - Relaxed validation for outer scopes (defaults are overridable)
  */
 export function SchemaForm({
-  queryPath,
+  scope = "block",
+  scopePath,
   schemaVersion,
   values = {},
   onValuesChange,
@@ -53,40 +125,80 @@ export function SchemaForm({
   disabled = false,
   className,
   showLoadingSkeleton = true,
+  validationMode,
+  showAffectedBlocks,
+  blockTypeFilter,
+  branchFilter,
+  showInheritedValues,
+  onClearValue,
 }: SchemaFormProps) {
-  // Fetch schema properties for the query path
+  // Determine defaults based on scope
+  const isOuterScope = scope !== "block";
+  const effectiveValidationMode =
+    validationMode ?? (isOuterScope ? "relaxed" : "strict");
+  const effectiveShowAffectedBlocks = showAffectedBlocks ?? isOuterScope;
+  // For block scope, show inherited values by default; for outer scopes, don't
+  const effectiveShowInheritedValues = showInheritedValues ?? scope === "block";
+
+  // Fetch schema properties using the scoped hook
   const {
-    data: schemaProperties,
-    isLoading,
-    error,
-  } = useSchemaProperties(queryPath, {
+    properties: scopedProperties,
+    isLoading: propertiesLoading,
+    error: propertiesError,
+  } = useScopedSchemaProperties(scope, scopePath, {
     schemaVersion,
+    blockTypeFilter,
+    branchFilter,
   });
 
-  // Group properties by block and extract the relevant block's properties
-  const blockProperties = useMemo(() => {
-    if (!schemaProperties) return null;
+  // Fetch resolved values (for showing inherited defaults)
+  const { data: validationResults, isLoading: validationLoading } =
+    useResolvedValues({
+      schemaVersion,
+      enabled: effectiveShowInheritedValues,
+    });
 
-    const grouped = groupPropertiesByBlock(schemaProperties);
+  // Extract resolved values for the current block path (only for block scope)
+  const resolvedValues = useMemo(() => {
+    if (scope !== "block" || !validationResults || !scopePath) {
+      return {};
+    }
+    return getResolvedValuesForBlock(validationResults, scopePath);
+  }, [scope, validationResults, scopePath]);
 
-    // Find the block matching our query path
-    const blockPath = Object.keys(grouped).find(
-      (path) => path === queryPath || queryPath.startsWith(path)
-    );
-
-    return blockPath ? grouped[blockPath] : null;
-  }, [schemaProperties, queryPath]);
+  const isLoading =
+    propertiesLoading || (effectiveShowInheritedValues && validationLoading);
+  const error = propertiesError;
 
   // Get ordered list of property names (required first, then optional)
   const orderedProperties = useMemo(() => {
-    if (!blockProperties) return [];
+    if (!scopedProperties) return [];
 
-    const props = Object.entries(blockProperties);
-    const required = props.filter(([, meta]) => meta.required);
-    const optional = props.filter(([, meta]) => !meta.required);
+    const props = Object.entries(scopedProperties);
+
+    // For outer scopes, use universallyRequired for sorting
+    const required = props.filter(([, meta]) =>
+      isOuterScope ? meta.universallyRequired : meta.required
+    );
+    const optional = props.filter(([, meta]) =>
+      isOuterScope ? !meta.universallyRequired : !meta.required
+    );
 
     return [...required, ...optional];
-  }, [blockProperties]);
+  }, [scopedProperties, isOuterScope]);
+
+  // Collect all affected block paths for context
+  const allAffectedBlockPaths = useMemo(() => {
+    if (!scopedProperties) return [];
+
+    const paths = new Set<string>();
+    for (const metadata of Object.values(scopedProperties)) {
+      for (const path of metadata.affectedBlockPaths) {
+        paths.add(path);
+      }
+    }
+    return Array.from(paths);
+  }, [scopedProperties]);
 
   // Initialize TanStack Form with values as default
   // Note: We don't reset on values prop change to avoid overwriting user input
@@ -97,13 +209,34 @@ export function SchemaForm({
     },
   });
 
+  // Track previous values to avoid infinite loops in autoSave
+  const prevValuesRef = useRef<string>("");
+
   // Auto-save: trigger onValuesChange when form state changes
   useEffect(() => {
     if (autoSave && onValuesChange) {
       const currentValues = form.state.values;
-      onValuesChange(currentValues);
+      const serialized = JSON.stringify(currentValues);
+
+      // Only trigger if values actually changed
+      if (serialized !== prevValuesRef.current) {
+        prevValuesRef.current = serialized;
+        const context: ValuesChangeContext = {
+          scope,
+          scopePath,
+          affectedBlockPaths: allAffectedBlockPaths,
+        };
+        onValuesChange(currentValues, context);
+      }
     }
-  }, [form.state.values, autoSave, onValuesChange]);
+  }, [
+    form.state.values,
+    autoSave,
+    onValuesChange,
+    scope,
+    scopePath,
+    allAffectedBlockPaths,
+  ]);
 
   if (isLoading && showLoadingSkeleton) {
     return (
@@ -126,10 +259,10 @@ export function SchemaForm({
     );
   }
 
-  if (!blockProperties || orderedProperties.length === 0) {
+  if (!scopedProperties || orderedProperties.length === 0) {
     return (
       <div className={cn("text-muted-foreground text-sm", className)}>
-        No editable properties found for this block.
+        No editable properties found for this {scope}.
       </div>
     );
   }
@@ -143,35 +276,65 @@ export function SchemaForm({
       }}
       className={cn("space-y-4", className)}
     >
-      {orderedProperties.map(([propertyName, metadata]) => (
-        <form.Field
-          key={propertyName}
-          name={propertyName}
-          validators={{
-            onChange: createValidator(metadata),
-          }}
-        >
-          {(field) => (
-            <FieldRenderer
-              metadata={metadata}
-              field={toFieldApiLike(field)}
-              disabled={disabled}
-            />
-          )}
-        </form.Field>
-      ))}
+      {orderedProperties.map(([propertyName, metadata]) => {
+        const resolved = resolvedValues[propertyName];
+        return (
+          <form.Field
+            key={propertyName}
+            name={propertyName}
+            validators={{
+              onChange: createScopedValidator(
+                metadata,
+                effectiveValidationMode
+              ),
+            }}
+          >
+            {(field) => (
+              <FieldRenderer
+                metadata={metadata}
+                field={toFieldApiLike(field)}
+                disabled={disabled}
+                showAffectedBlocks={effectiveShowAffectedBlocks}
+                inheritedValue={resolved}
+                onClear={
+                  onClearValue
+                    ? () => {
+                        field.handleChange(undefined);
+                        onClearValue(propertyName);
+                      }
+                    : undefined
+                }
+              />
+            )}
+          </form.Field>
+        );
+      })}
     </form>
   );
 }
 
 /**
- * Create a validator function based on property metadata.
+ * Create a validator function based on property metadata and validation mode.
  * For dimension fields, validates min/max using unit conversion.
  */
-function createValidator(metadata: PropertyMetadata) {
+function createScopedValidator(
+  metadata: AggregatedPropertyMetadata,
+  validationMode: ValidationMode
+) {
   return ({ value }: { value: unknown }) => {
+    // No validation mode: skip all validation
+    if (validationMode === "none") {
+      return undefined;
+    }
+
+    const isRelaxed = validationMode === "relaxed";
+
     // Required field validation
-    if (metadata.required && (value === undefined || value === null || value === "")) {
+    // In relaxed mode, only validate if universallyRequired
+    const isRequired = isRelaxed
+      ? metadata.universallyRequired
+      : metadata.required;
+    if (isRequired && (value === undefined || value === null || value === "")) {
       return `${metadata.title ?? metadata.property} is required`;
     }
 
@@ -180,12 +343,34 @@ function createValidator(metadata: PropertyMetadata) {
       return undefined;
     }
 
+    // In relaxed mode, skip min/max validation (defaults can be overridden)
+    if (isRelaxed) {
+      // Only validate enum values in relaxed mode
+      if (metadata.type === "enum" && metadata.enumValues?.length) {
+        const stringValue = String(value);
+        const isValid = metadata.enumValues.some(
+          (v) => String(v) === stringValue
+        );
+        if (!isValid) {
+          return `Invalid value. Must be one of: ${metadata.enumValues.join(
+            ", "
+          )}`;
+        }
+      }
+      return undefined;
+    }
+
+    // Strict mode: full validation
+
     // Dimension field validation with unit conversion
     if (metadata.dimension && typeof value === "string" && value.trim()) {
       const defaultUnit = metadata.defaultUnit || "";
 
       // Only validate min/max if we have a default unit to convert to
-      if (defaultUnit && (metadata.min !== undefined || metadata.max !== undefined)) {
+      if (
+        defaultUnit &&
+        (metadata.min !== undefined || metadata.max !== undefined)
+      ) {
         try {
           // Convert user's expression to the schema's default unit
           // e.g., "5 km" as "m" -> "5000 m"
@@ -229,51 +414,12 @@ function createValidator(metadata: PropertyMetadata) {
         (v) => String(v) === stringValue
       );
       if (!isValid) {
-        return `Invalid value. Must be one of: ${metadata.enumValues.join(", ")}`;
+        return `Invalid value. Must be one of: ${metadata.enumValues.join(
+          ", "
+        )}`;
       }
     }
 
     return undefined;
-  };
-}
-
-/**
- * Hook to get just the form state without rendering.
- * Useful for external form management.
- */
-export function useSchemaForm(
-  queryPath: string,
-  options?: {
-    schemaVersion?: string;
-    initialValues?: Record<string, unknown>;
-  }
-) {
-  const {
-    data: schemaProperties,
-    isLoading,
-    error,
-  } = useSchemaProperties(queryPath, {
-    schemaVersion: options?.schemaVersion,
-  });
-
-  const blockProperties = useMemo(() => {
-    if (!schemaProperties) return null;
-    const grouped = groupPropertiesByBlock(schemaProperties);
-    const blockPath = Object.keys(grouped).find(
-      (path) => path === queryPath || queryPath.startsWith(path)
-    );
-    return blockPath ? grouped[blockPath] : null;
-  }, [schemaProperties, queryPath]);
-
-  const form = useForm({
-    defaultValues: options?.initialValues ?? {},
-  });
-
-  return {
-    form,
-    schemaProperties,
-    blockProperties,
-    isLoading,
-    error,
   };
 }

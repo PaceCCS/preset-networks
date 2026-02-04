@@ -97,6 +97,62 @@ export const edgesCollection = createCollection(
   })
 );
 
+/**
+ * Global network configuration/defaults.
+ * Stores network-level property defaults that can be inherited by all blocks.
+ */
+export type GlobalConfig = {
+  id: "global";
+  defaults: Record<string, string | number | boolean | null | undefined>;
+};
+
+export const globalConfigCollection = createCollection(
+  localStorageCollectionOptions<GlobalConfig>({
+    id: "flow:globalConfig",
+    storageKey: "flow:globalConfig",
+    getKey: (config) => config.id,
+  })
+);
+
+/**
+ * Get or initialize the global config.
+ */
+export function getGlobalConfig(): GlobalConfig {
+  const existing = globalConfigCollection.get("global");
+  if (existing) return existing;
+
+  const initial: GlobalConfig = { id: "global", defaults: {} };
+  globalConfigCollection.insert(initial);
+  return initial;
+}
+
+/**
+ * Update a global default property.
+ */
+export function setGlobalDefault(
+  propertyName: string,
+  value: string | number | boolean | null | undefined
+): void {
+  if (!globalConfigCollection.has("global")) {
+    globalConfigCollection.insert({ id: "global", defaults: { [propertyName]: value } });
+  } else {
+    globalConfigCollection.update("global", (draft) => {
+      draft.defaults[propertyName] = value;
+    });
+  }
+}
+
+/**
+ * Clear a global default property.
+ */
+export function clearGlobalDefault(propertyName: string): void {
+  if (globalConfigCollection.has("global")) {
+    globalConfigCollection.update("global", (draft) => {
+      delete draft.defaults[propertyName];
+    });
+  }
+}
+
 export const findEdgesBySource = (sourceId: string) =>
   createCollection(
     liveQueryCollectionOptions({
@@ -328,10 +384,15 @@ export function writeEdgesToCollection(updated: FlowEdge[]): void {
  * including any user modifications.
  */
 export async function getNetworkSourceFromCollections(): Promise<NetworkSource> {
-  await Promise.all([nodesCollection.preload(), edgesCollection.preload()]);
+  await Promise.all([
+    nodesCollection.preload(),
+    edgesCollection.preload(),
+    globalConfigCollection.preload(),
+  ]);
 
   const nodes = Array.from(nodesCollection.values()) as FlowNode[];
   const edges = Array.from(edgesCollection.values()) as FlowEdge[];
+  const globalConfig = globalConfigCollection.get("global");
 
   // Build groups and branches from the nodes
   const groups: NetworkData["groups"] = [];
@@ -351,7 +412,12 @@ export async function getNetworkSourceFromCollections(): Promise<NetworkSource> 
       .filter((b) => b.parentId === groupNode.id)
       .map((b) => b.id);
 
+    // Include all group data (for property inheritance) plus standard fields
+    const { id: _dataId, label: _dataLabel, ...groupData } =
+      (groupNode.data ?? {}) as Record<string, unknown>;
+
     groups.push({
+      ...groupData, // Group-level properties for inheritance
       id: groupNode.id,
       label: groupNode.data?.label ?? undefined,
       branchIds: groupBranchIds,
@@ -373,9 +439,17 @@ export async function getNetworkSourceFromCollections(): Promise<NetworkSource> 
     });
   }
 
+  // Include global defaults if any are set
+  const defaults = globalConfig?.defaults;
+  const hasDefaults = defaults && Object.keys(defaults).length > 0;
+
   return {
     type: "data",
-    network: { groups, branches },
+    network: {
+      groups,
+      branches,
+      ...(hasDefaults && { defaults }),
+    },
   };
 }
 

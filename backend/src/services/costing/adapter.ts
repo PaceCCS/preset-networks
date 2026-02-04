@@ -82,7 +82,7 @@ import {
  * Returns the network structure and the resolved path (for validation).
  */
 async function loadNetworkData(
-  source: NetworkSource,
+  source: NetworkSource
 ): Promise<{ data: NetworkData; networkPath: string | null }> {
   if (source.type === "data") {
     return { data: source.network, networkPath: null };
@@ -100,7 +100,7 @@ async function loadNetworkData(
   const nodesResult = dagger.query_from_files(
     filesJson,
     configContent || undefined,
-    "network/nodes",
+    "network/nodes"
   );
   const nodes: Array<{
     id: string;
@@ -111,30 +111,11 @@ async function loadNetworkData(
     data?: Record<string, unknown>;
   }> = JSON.parse(nodesResult);
 
-  console.log("[costing adapter] Initial nodes count:", nodes.length);
-  console.log(
-    "[costing adapter] Node IDs:",
-    nodes.map((n) => n.id),
-  );
-
   // Separate groups and branches based on type
   const rawGroups = nodes.filter(
-    (n) => n.type === "labeledGroup" || n.type === "group",
+    (n) => n.type === "labeledGroup" || n.type === "group"
   );
   const rawBranches = nodes.filter((n) => n.type === "branch");
-
-  console.log(
-    "[costing adapter] Found",
-    rawGroups.length,
-    "groups:",
-    rawGroups.map((g) => g.id),
-  );
-  console.log(
-    "[costing adapter] Found",
-    rawBranches.length,
-    "branches:",
-    rawBranches.map((b) => b.id),
-  );
 
   // Build group objects
   const groups: NetworkGroup[] = rawGroups.map((g) => ({
@@ -208,7 +189,7 @@ export type AssetMetadata = {
 export async function transformNetworkToCostingRequest(
   source: NetworkSource,
   schemaSet: string,
-  options: CostingTransformOptions,
+  options: CostingTransformOptions
 ): Promise<CostingTransformResult> {
   await dim.init();
 
@@ -229,7 +210,7 @@ export async function transformNetworkToCostingRequest(
   // Validate all blocks and get resolved properties
   const validationResults = await validateNetworkBlocks(
     effectSource,
-    schemaSet,
+    schemaSet
   );
 
   // Get module lookup service
@@ -260,7 +241,7 @@ export async function transformNetworkToCostingRequest(
       groupBranches,
       moduleLookup,
       options,
-      validationResults,
+      validationResults
     );
 
     // Always add metadata (for validation), but only add asset if it has costable items
@@ -276,7 +257,7 @@ export async function transformNetworkToCostingRequest(
       branch,
       moduleLookup,
       options,
-      validationResults,
+      validationResults
     );
 
     // Always add metadata (for validation), but only add asset if it has costable items
@@ -355,7 +336,7 @@ async function transformGroupToAsset(
   branches: NetworkBranch[],
   moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
   options: CostingTransformOptions,
-  validationResults: Record<string, ValidationResult>,
+  validationResults: Record<string, ValidationResult>
 ): Promise<{ asset: AssetParameters; metadata: AssetMetadata }> {
   // Collect all blocks from all branches in this group
   const allCostItems: CostItemParameters[] = [];
@@ -374,7 +355,7 @@ async function transformGroupToAsset(
         block as Block,
         validationResults,
         branch.id,
-        i,
+        i
       ) as NetworkBlock;
 
       // Validate block for costing (map to cost module)
@@ -386,7 +367,7 @@ async function transformGroupToAsset(
         const costItems = await transformBlockToCostItems(
           enrichedBlock,
           blockId,
-          moduleLookup,
+          moduleLookup
         );
         allCostItems.push(...costItems);
       }
@@ -432,7 +413,7 @@ async function transformBranchToAsset(
   branch: NetworkBranch,
   moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
   options: CostingTransformOptions,
-  validationResults: Record<string, ValidationResult>,
+  validationResults: Record<string, ValidationResult>
 ): Promise<{ asset: AssetParameters; metadata: AssetMetadata }> {
   const costItems: CostItemParameters[] = [];
   const blockValidations: BlockValidation[] = [];
@@ -446,7 +427,7 @@ async function transformBranchToAsset(
       block as Block,
       validationResults,
       branch.id,
-      i,
+      i
     ) as NetworkBlock;
 
     // Validate block for costing (map to cost module)
@@ -458,7 +439,7 @@ async function transformBranchToAsset(
       const blockCostItems = await transformBlockToCostItems(
         enrichedBlock,
         blockId,
-        moduleLookup,
+        moduleLookup
       );
       costItems.push(...blockCostItems);
     }
@@ -508,7 +489,7 @@ async function transformBranchToAsset(
 async function transformBlockToCostItems(
   block: NetworkBlock,
   blockPath: string,
-  moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
+  moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>
 ): Promise<CostItemParameters[]> {
   // Map generic block to cost library module
   const mapping = mapBlockToModule(block);
@@ -520,11 +501,11 @@ async function transformBlockToCostItems(
   // Look up the module in the cost library
   const moduleInfo = moduleLookup.lookup(
     mapping.moduleType,
-    mapping.subtype ?? undefined,
+    mapping.subtype ?? undefined
   );
   if (!moduleInfo) {
     console.warn(
-      `Module not found in cost library: ${mapping.moduleType}/${mapping.subtype}`,
+      `Module not found in cost library: ${mapping.moduleType}/${mapping.subtype}`
     );
     return [];
   }
@@ -549,7 +530,7 @@ async function transformBlockToCostItems(
       block,
       costItemRef,
       moduleInfo,
-      moduleLookup,
+      moduleLookup
     );
 
     // Check if we have ALL required parameters
@@ -558,7 +539,7 @@ async function transformBlockToCostItems(
     // 2. ALL required parameters are provided
     const providedParams = new Set(Object.keys(parameters));
     const hasAllRequiredParams = requiredParams.every((name) =>
-      providedParams.has(name),
+      providedParams.has(name)
     );
 
     if (requiredParams.length === 0 || hasAllRequiredParams) {
@@ -592,7 +573,7 @@ async function extractParametersForCostItem(
       costItemId?: string;
     }>;
   },
-  moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>,
+  moduleLookup: Awaited<ReturnType<typeof getModuleLookupService>>
 ): Promise<Record<string, number>> {
   const parameters: Record<string, number> = {};
 
@@ -662,7 +643,7 @@ async function extractParametersForCostItem(
  */
 function getItemSuffix(
   costItemRef: string,
-  costItem: { info?: { item_type?: string } },
+  costItem: { info?: { item_type?: string } }
 ): string {
   // Map item types to property suffixes
   const itemTypeSuffixes: Record<string, string> = {
@@ -724,7 +705,7 @@ function mapCostParamToBlockProp(costParamName: string): string[] {
  */
 async function extractModuleLevelParameters(
   block: NetworkBlock,
-  moduleInfo: { requiredParameters: Array<{ name: string; units: string }> },
+  moduleInfo: { requiredParameters: Array<{ name: string; units: string }> }
 ): Promise<Record<string, number>> {
   const parameters: Record<string, number> = {};
 
@@ -774,7 +755,7 @@ function normalizeDimUnits(units: string): string {
  */
 async function convertParameterValue(
   value: unknown,
-  targetUnits: string,
+  targetUnits: string
 ): Promise<number | null> {
   if (typeof value === "number") {
     return value;
@@ -810,7 +791,7 @@ async function convertParameterValue(
     } catch (error) {
       console.warn(
         `Failed to convert value "${value}" to ${targetUnits}:`,
-        error,
+        error
       );
     }
   }
@@ -828,7 +809,7 @@ async function convertParameterValue(
 export function transformCostingResponse(
   response: CostEstimateResponse,
   assetMetadata: AssetMetadata[],
-  currency: string,
+  currency: string
 ): CostingEstimateResponse {
   const metadataMap = new Map(assetMetadata.map((m) => [m.assetId, m]));
 
@@ -843,7 +824,7 @@ export function transformCostingResponse(
       propertiesUsingDefaults: metadata?.usingDefaults ?? [],
       lifetimeCosts: transformLifetimeCosts(assetResponse.lifetime_costs),
       lifetimeNpcCosts: transformLifetimeCosts(
-        assetResponse.lifetime_dcf_costs,
+        assetResponse.lifetime_dcf_costs
       ),
       blocks: assetResponse.cost_items.map((item) => transformBlockCost(item)),
     };
@@ -851,10 +832,10 @@ export function transformCostingResponse(
 
   // Calculate network-level totals
   const networkLifetimeCosts = aggregateLifetimeCosts(
-    assets.map((a) => a.lifetimeCosts),
+    assets.map((a) => a.lifetimeCosts)
   );
   const networkLifetimeNpcCosts = aggregateLifetimeCosts(
-    assets.map((a) => a.lifetimeNpcCosts),
+    assets.map((a) => a.lifetimeNpcCosts)
   );
 
   return {
@@ -870,12 +851,12 @@ export function transformCostingResponse(
 }
 
 function transformLifetimeCosts(
-  costs: CostEstimateResponse["assets"][0]["lifetime_costs"],
+  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]
 ): LifetimeCosts {
   return {
     directEquipmentCost: costs.direct_equipment_cost,
     langFactoredCapitalCost: transformLangFactoredCosts(
-      costs.lang_factored_capital_cost,
+      costs.lang_factored_capital_cost
     ),
     totalInstalledCost: costs.total_installed_cost,
     fixedOpexCost: transformFixedOpexCosts(costs.fixed_opex_cost),
@@ -885,7 +866,7 @@ function transformLifetimeCosts(
 }
 
 function transformLangFactoredCosts(
-  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["lang_factored_capital_cost"],
+  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["lang_factored_capital_cost"]
 ): LangFactoredCosts {
   return {
     equipmentErection: costs.equipment_erection,
@@ -904,7 +885,7 @@ function transformLangFactoredCosts(
 }
 
 function transformFixedOpexCosts(
-  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["fixed_opex_cost"],
+  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["fixed_opex_cost"]
 ): FixedOpexCosts {
   return {
     maintenance: costs.maintenance,
@@ -918,7 +899,7 @@ function transformFixedOpexCosts(
 }
 
 function transformVariableOpexCosts(
-  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["variable_opex_cost"],
+  costs: CostEstimateResponse["assets"][0]["lifetime_costs"]["variable_opex_cost"]
 ): VariableOpexCosts {
   return {
     electricity: costs.electrical_power,
@@ -932,7 +913,7 @@ function transformVariableOpexCosts(
 }
 
 function transformBlockCost(
-  item: CostEstimateResponse["assets"][0]["cost_items"][0],
+  item: CostEstimateResponse["assets"][0]["cost_items"][0]
 ): BlockCostResult {
   return {
     id: item.id,
@@ -951,29 +932,29 @@ function aggregateLifetimeCosts(costs: LifetimeCosts[]): LifetimeCosts {
     directEquipmentCost: sum(costs.map((c) => c.directEquipmentCost)),
     langFactoredCapitalCost: {
       equipmentErection: sum(
-        costs.map((c) => c.langFactoredCapitalCost.equipmentErection),
+        costs.map((c) => c.langFactoredCapitalCost.equipmentErection)
       ),
       piping: sum(costs.map((c) => c.langFactoredCapitalCost.piping)),
       instrumentation: sum(
-        costs.map((c) => c.langFactoredCapitalCost.instrumentation),
+        costs.map((c) => c.langFactoredCapitalCost.instrumentation)
       ),
       electrical: sum(costs.map((c) => c.langFactoredCapitalCost.electrical)),
       buildingsAndProcess: sum(
-        costs.map((c) => c.langFactoredCapitalCost.buildingsAndProcess),
+        costs.map((c) => c.langFactoredCapitalCost.buildingsAndProcess)
       ),
       utilities: sum(costs.map((c) => c.langFactoredCapitalCost.utilities)),
       storages: sum(costs.map((c) => c.langFactoredCapitalCost.storages)),
       siteDevelopment: sum(
-        costs.map((c) => c.langFactoredCapitalCost.siteDevelopment),
+        costs.map((c) => c.langFactoredCapitalCost.siteDevelopment)
       ),
       ancillaryBuildings: sum(
-        costs.map((c) => c.langFactoredCapitalCost.ancillaryBuildings),
+        costs.map((c) => c.langFactoredCapitalCost.ancillaryBuildings)
       ),
       designAndEngineering: sum(
-        costs.map((c) => c.langFactoredCapitalCost.designAndEngineering),
+        costs.map((c) => c.langFactoredCapitalCost.designAndEngineering)
       ),
       contractorsFee: sum(
-        costs.map((c) => c.langFactoredCapitalCost.contractorsFee),
+        costs.map((c) => c.langFactoredCapitalCost.contractorsFee)
       ),
       contingency: sum(costs.map((c) => c.langFactoredCapitalCost.contingency)),
     },
@@ -981,13 +962,13 @@ function aggregateLifetimeCosts(costs: LifetimeCosts[]): LifetimeCosts {
     fixedOpexCost: {
       maintenance: sum(costs.map((c) => c.fixedOpexCost.maintenance)),
       controlRoomFacilities: sum(
-        costs.map((c) => c.fixedOpexCost.controlRoomFacilities),
+        costs.map((c) => c.fixedOpexCost.controlRoomFacilities)
       ),
       insuranceLiability: sum(
-        costs.map((c) => c.fixedOpexCost.insuranceLiability),
+        costs.map((c) => c.fixedOpexCost.insuranceLiability)
       ),
       insuranceEquipmentLoss: sum(
-        costs.map((c) => c.fixedOpexCost.insuranceEquipmentLoss),
+        costs.map((c) => c.fixedOpexCost.insuranceEquipmentLoss)
       ),
       costOfCapital: sum(costs.map((c) => c.fixedOpexCost.costOfCapital)),
       majorTurnarounds: sum(costs.map((c) => c.fixedOpexCost.majorTurnarounds)),

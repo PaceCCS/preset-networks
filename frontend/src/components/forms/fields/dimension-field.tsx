@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { FieldLabel, FieldDescription, FieldError } from "./field-label";
+import { Button } from "@/components/ui/button";
+import { FieldLabelWithAffected, FieldDescription, FieldError, InheritedIndicator } from "./field-label";
 import type { BaseFieldProps } from "./types";
 import { cn } from "@/lib/utils";
 import { useDim } from "@/lib/dim/use-dim";
 import { Badge } from "@/components/ui/badge";
-import { CheckIcon, XIcon } from "lucide-react";
+import { CheckIcon, XIcon, X } from "lucide-react";
 
 /**
  * DimensionField handles dimensional quantities (values with units).
@@ -24,12 +25,28 @@ export function DimensionField({
   field,
   disabled,
   className,
+  showAffectedBlocks = false,
+  inheritedValue,
+  onClear,
 }: BaseFieldProps) {
   const fieldId = `field-${metadata.property}`;
   const defaultUnit = metadata.defaultUnit ?? "";
 
-  // Local state for what the user is typing
-  // Initialize from field value, stripping the default unit if it's just "number unit"
+  // Determine if value is locally set vs inherited
+  // A value is "local" if:
+  // 1. User has typed into the form (field.state.value is set), OR
+  // 2. The resolved value has scope="block" (stored at block level)
+  const hasFormValue = field.state.value !== undefined && field.state.value !== "";
+  const hasStoredBlockValue = inheritedValue?.scope === "block" && inheritedValue?.value != null;
+  const hasLocalValue = hasFormValue || hasStoredBlockValue;
+
+  // Value is inherited if scope exists and is NOT "block"
+  const isInherited = inheritedValue?.scope && inheritedValue.scope !== "block";
+
+  // Show clear button when there's a local value that can be cleared to inherit
+  const showClearButton = onClear && hasLocalValue;
+
+  // Helper to convert stored value to display value
   const getDisplayValue = (value: unknown): string => {
     if (value === undefined || value === null || value === "") {
       return "";
@@ -43,9 +60,22 @@ export function DimensionField({
     return strValue;
   };
 
-  const [inputValue, setInputValue] = useState(() =>
-    getDisplayValue(field.state.value)
-  );
+  // Get the value to display: form value > stored block value > inherited value
+  const effectiveValue = hasFormValue
+    ? field.state.value
+    : inheritedValue?.value != null
+      ? inheritedValue.value
+      : "";
+
+  // Track whether user has started typing (to avoid overwriting with inherited value)
+  const hasUserTyped = useRef(false);
+
+  // Local state for what the user is typing
+  // Initialize from effective value, but only update from inherited if user hasn't typed
+  const [inputValue, setInputValue] = useState(() => getDisplayValue(effectiveValue));
+
+  // Sync with inherited value only if user hasn't typed yet
+  const displayedValue = hasUserTyped.current ? inputValue : getDisplayValue(effectiveValue);
 
   // Build expression for validation: if just a number, append default unit
   const getExpression = useCallback(
@@ -63,7 +93,7 @@ export function DimensionField({
     [defaultUnit]
   );
 
-  const expression = getExpression(inputValue);
+  const expression = getExpression(displayedValue);
 
   // Validate using useDim hook
   const { status, results } = useDim(expression ? [expression] : [], {
@@ -72,6 +102,7 @@ export function DimensionField({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
+    hasUserTyped.current = true;
     setInputValue(newValue);
 
     // Update form value with the full expression
@@ -81,6 +112,12 @@ export function DimensionField({
 
   const isValid = status === "success" && results.length === 1;
 
+  const handleClear = () => {
+    hasUserTyped.current = false;
+    setInputValue("");
+    if (onClear) onClear();
+  };
+
   // Get error message
   const errorMessage =
     field.state.meta.isTouched && field.state.meta.errors.length > 0
@@ -89,20 +126,28 @@ export function DimensionField({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <FieldLabel metadata={metadata} htmlFor={fieldId} />
+      <FieldLabelWithAffected
+        metadata={metadata}
+        htmlFor={fieldId}
+        showAffectedBlocks={showAffectedBlocks}
+      />
       <div className="flex flex-row gap-1 items-center">
         <Input
           id={fieldId}
           type="text"
-          value={inputValue}
+          value={displayedValue}
           onChange={handleChange}
           onBlur={field.handleBlur}
           disabled={disabled}
           placeholder={defaultUnit ? `e.g., 100 or 100 ${defaultUnit}` : "Enter value"}
           autoComplete="off"
-          className="flex-1"
+          className={cn(
+            "flex-1",
+            // Dashed border for inherited values, solid for local
+            isInherited && !hasLocalValue && "border-dashed border-muted-foreground/50"
+          )}
         />
-        {inputValue && status === "success" && (
+        {displayedValue && status === "success" && (
           <Badge variant="default" className="size-6 px-0.5">
             {isValid ? (
               <CheckIcon className="size-4" />
@@ -111,12 +156,25 @@ export function DimensionField({
             )}
           </Badge>
         )}
-        {inputValue && status === "error" && (
+        {displayedValue && status === "error" && (
           <Badge variant="destructive" className="size-6 px-0.5">
             <XIcon className="size-4" />
           </Badge>
         )}
+        {showClearButton && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleClear}
+            disabled={disabled}
+            title="Clear to inherit from outer scope"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+      <InheritedIndicator inheritedValue={inheritedValue} hasLocalValue={hasLocalValue} />
       {defaultUnit && (
         <p className="text-xs text-muted-foreground">
           Default unit: {defaultUnit}

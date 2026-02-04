@@ -14,6 +14,7 @@ import dim from "./dim";
 import { parseValue, convertToNumber } from "./valueParser";
 import { getDagger } from "../utils/getDagger";
 import { resolveNetworkPath } from "../utils/network-path";
+import { networkDataToTomlFiles } from "./networkToToml";
 
 type NetworkFiles = {
   files: Record<string, string>;
@@ -628,31 +629,40 @@ async function validateBlockInternal(
         completeValidationObject[propName] = block[propName];
       }
     } else if (pathParts.length === 2) {
-      try {
-        const scopeResult = dagger.resolve_property_with_scope(
-          filesJson,
-          configContent || undefined,
-          pathParts[0],
-          parseInt(pathParts[1], 10),
-          propName,
-        );
-        const parsed = JSON.parse(scopeResult);
-        if (parsed?.value !== undefined && parsed.scope) {
-          propertyScopes[propName] = parsed.scope;
-          propertyValues[propName] = parsed.value;
-          if (propMetadata?.defaultUnit) {
-            const converted = await convertValueForValidation(
-              parsed.value,
-              propName,
-              propMetadata,
-            );
-            completeValidationObject[propName] = converted ?? parsed.value;
-          } else {
-            completeValidationObject[propName] = parsed.value;
+      let resolved: ResolvedProperty | null = null;
+
+      // Resolve property from TOML files using WASM
+      if (filesJson !== "{}") {
+        try {
+          const scopeResult = dagger.resolve_property_with_scope(
+            filesJson,
+            configContent || undefined,
+            pathParts[0],
+            parseInt(pathParts[1], 10),
+            propName,
+          );
+          const parsed = JSON.parse(scopeResult);
+          if (parsed?.value !== undefined && parsed.scope) {
+            resolved = { value: parsed.value, scope: parsed.scope };
           }
+        } catch {
+          // Property not found in any scope
         }
-      } catch {
-        // Property not found in scope
+      }
+
+      if (resolved) {
+        propertyScopes[propName] = resolved.scope;
+        propertyValues[propName] = resolved.value;
+        if (propMetadata?.defaultUnit) {
+          const converted = await convertValueForValidation(
+            resolved.value,
+            propName,
+            propMetadata,
+          );
+          completeValidationObject[propName] = converted ?? resolved.value;
+        } else {
+          completeValidationObject[propName] = resolved.value;
+        }
       }
     }
   }
@@ -865,13 +875,23 @@ export type NetworkSource =
   | { type: "data"; network: NetworkData };
 
 export type NetworkData = {
-  groups: Array<{ id: string; label?: string; branchIds: string[] }>;
+  groups: Array<{
+    id: string;
+    label?: string;
+    branchIds: string[];
+    /** Group-level properties for inheritance */
+    [key: string]: unknown;
+  }>;
   branches: Array<{
     id: string;
     label?: string;
     parentId?: string;
     blocks: Block[];
+    /** Branch-level properties for inheritance */
+    [key: string]: unknown;
   }>;
+  /** Global defaults for inheritance */
+  defaults?: Record<string, unknown>;
 };
 
 /**
@@ -879,7 +899,7 @@ export type NetworkData = {
  *
  * @param source - Network source (networkId or inline data)
  * @param schemaSet - Schema set to use for validation
- * @param baseNetworkId - Optional networkId for property resolution when source is inline data
+ * @param baseNetworkId - Optional networkId for unit preferences when source is inline data
  * @param queryOverrides - Optional unit overrides
  */
 export async function validateNetworkBlocks(
@@ -888,25 +908,38 @@ export async function validateNetworkBlocks(
   baseNetworkId?: string,
   queryOverrides: Record<string, string> = {},
 ): Promise<Record<string, ValidationResult>> {
-  // Determine the network path for file-based property resolution
-  let networkPath: string | null = null;
-  if (source.type === "networkId") {
-    networkPath = resolveNetworkPath(source.networkId);
-  } else if (baseNetworkId) {
-    networkPath = resolveNetworkPath(baseNetworkId);
-  }
-
-  // Read files for property resolution (if we have a path)
   let files: Record<string, string> = {};
   let configContent: string | null = null;
-  let filesJson = "{}";
+  let networkPath: string | null = null;
 
-  if (networkPath) {
+  if (source.type === "networkId") {
+    // Read files from disk
+    networkPath = resolveNetworkPath(source.networkId);
     const networkFiles = await readNetworkFiles(networkPath);
     files = networkFiles.files;
     configContent = networkFiles.configContent;
-    filesJson = JSON.stringify(files);
+  } else {
+    // Convert inline data to TOML format for WASM resolution
+    const tomlFiles = networkDataToTomlFiles(source.network);
+    files = tomlFiles.files;
+    configContent = tomlFiles.configContent;
+
+    // If we have a baseNetworkId, read its config for unit preferences only
+    if (baseNetworkId) {
+      try {
+        networkPath = resolveNetworkPath(baseNetworkId);
+        const baseFiles = await readNetworkFiles(networkPath);
+        // Only use the base config for unit preferences, not for property resolution
+        if (baseFiles.configContent && !configContent) {
+          configContent = baseFiles.configContent;
+        }
+      } catch {
+        // Base network not found, continue without it
+      }
+    }
   }
+
+  const filesJson = JSON.stringify(files);
 
   // Initialize dim once for all blocks
   await dim.init();
