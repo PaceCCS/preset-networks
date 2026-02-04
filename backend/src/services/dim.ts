@@ -1,6 +1,3 @@
-const { readFile } = await import("node:fs/promises");
-const { join } = await import("node:path");
-
 // TypeScript wrapper for the Zig dim WASM module
 type DimExports = {
   memory: WebAssembly.Memory;
@@ -113,6 +110,10 @@ export async function initDim(): Promise<void> {
         currentMemory = inst.exports.memory;
         instance = inst;
       } else {
+        // Dynamic imports for Node.js environment
+        const { readFile } = await import("node:fs/promises");
+        const { join } = await import("node:path");
+
         // Path to dim WASM file - relative to backend directory
         const filePath = join(process.cwd(), "dim", "wasm", "dim_wasm.wasm");
         // Try alternative path
