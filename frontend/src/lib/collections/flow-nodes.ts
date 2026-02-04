@@ -1,6 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
 import type {
-  NetworkNode,
   NetworkEdge,
   BranchNodeData,
   GroupNodeData,
