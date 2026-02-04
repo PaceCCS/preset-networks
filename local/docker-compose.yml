@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
       target: dev
     container_name: preset-networks-backend
     ports:
@@ -21,8 +21,8 @@ services:
 
   backend-prod:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
       target: runner
     container_name: preset-networks-backend
     ports:
@@ -51,8 +51,8 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: frontend/Dockerfile
       target: dev
     container_name: preset-networks-frontend
     ports:
@@ -73,8 +73,8 @@ services:
 
   frontend-prod:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: frontend/Dockerfile
       target: runner
     container_name: preset-networks-frontend
     ports:
