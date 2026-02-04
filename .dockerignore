@@ -1,0 +1,39 @@
+# Dependencies (root and workspaces)
+node_modules
+**/node_modules
+
+# Build outputs
+.next
+**/dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/vitest.config.ts
+**/coverage
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+LICENSE
+
+# Local docker compose
+local/

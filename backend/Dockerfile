@@ -7,17 +7,18 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files and install dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci && npm cache clean --force
+# Copy root package files for npm workspaces
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+RUN npm ci --workspace=backend && npm cache clean --force
 
 # Copy source code and assets
-COPY tsconfig.json ./
-COPY src ./src
-COPY pkg ./pkg
-COPY dim ./dim
-COPY networks ./networks
-COPY data ./data
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+COPY backend/pkg ./pkg
+COPY backend/dim ./dim
+COPY backend/networks ./networks
+COPY backend/data ./data
 
 # Change ownership to nodejs user
 RUN chown -R nodejs:nodejs /app
