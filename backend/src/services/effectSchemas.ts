@@ -7,6 +7,9 @@ export type PropertyMetadata = {
   title?: string;
   min?: number;
   max?: number;
+  type: "number" | "string" | "enum" | "boolean";
+  description?: string;
+  enumValues?: (string | number | boolean)[];
 };
 
 export type SchemaMetadata = {
@@ -102,11 +105,33 @@ function getPropertyMetadata(
   }
 
   if (!ast) {
-    return {};
+    return { type: "string" };
   }
 
   const annotations = ast.annotations || {};
-  const metadata: PropertyMetadata = {};
+
+  // Extract enum values first (needed for type inference)
+  const enumValues = extractEnumValues(ast);
+
+  // Infer property type
+  const propertyType = inferPropertyType(ast, enumValues);
+
+  // Extract description
+  const description = extractDescription(ast);
+
+  const metadata: PropertyMetadata = {
+    type: propertyType,
+  };
+
+  // Add enum values if present
+  if (enumValues && enumValues.length > 0) {
+    metadata.enumValues = enumValues;
+  }
+
+  // Add description if present
+  if (description) {
+    metadata.description = description;
+  }
 
   // Extract plain object properties from annotations (string keys)
   const stringKeys = Object.keys(annotations);
@@ -118,6 +143,8 @@ function getPropertyMetadata(
       metadata.defaultUnit = String(value);
     } else if (key === "title") {
       metadata.title = String(value);
+    } else if (key === "description" && !metadata.description) {
+      metadata.description = String(value);
     }
   }
 
@@ -224,6 +251,114 @@ function extractMaxConstraint(ast: any): number | undefined {
     if (nestedMax !== undefined) {
       return nestedMax;
     }
+  }
+
+  return undefined;
+}
+
+/**
+ * Extract literal values from Effect Schema AST for enum fields.
+ * Handles both single literals and unions of literals (Schema.Literal("a", "b", "c"))
+ */
+function extractEnumValues(
+  ast: any
+): (string | number | boolean)[] | undefined {
+  if (!ast) return undefined;
+
+  // Single literal: Schema.Literal("value")
+  if (ast._tag === "Literal") {
+    return [ast.literal];
+  }
+
+  // Union of literals: Schema.Literal("a", "b", "c")
+  if (ast._tag === "Union" && ast.types) {
+    const literals = ast.types
+      .filter((t: any) => t._tag === "Literal")
+      .map((t: any) => t.literal);
+
+    // Only return if ALL types are literals (not mixed union)
+    if (literals.length === ast.types.length && literals.length > 0) {
+      return literals;
+    }
+  }
+
+  // Check if this is a Refinement wrapping a Literal/Union
+  if (ast._tag === "Refinement" && ast.from) {
+    return extractEnumValues(ast.from);
+  }
+
+  return undefined;
+}
+
+/**
+ * Infer the property type from Effect Schema AST.
+ * Returns "enum" if enum values are present, otherwise infers from AST tag.
+ */
+function inferPropertyType(
+  ast: any,
+  enumValues?: (string | number | boolean)[]
+): PropertyMetadata["type"] {
+  if (enumValues && enumValues.length > 0) return "enum";
+  if (!ast) return "string";
+
+  if (ast._tag === "BooleanKeyword") return "boolean";
+  if (ast._tag === "NumberKeyword") return "number";
+  if (ast._tag === "StringKeyword") return "string";
+
+  // Handle Refinement by checking base type
+  if (ast._tag === "Refinement" && ast.from) {
+    return inferPropertyType(ast.from, enumValues);
+  }
+
+  // Handle Union (non-literal union falls through to string)
+  if (ast._tag === "Union") {
+    // If we got here, it's not a pure literal union (enumValues would be set)
+    // Check if it's a union of same primitive types
+    const types = ast.types || [];
+    const hasNumber = types.some((t: any) => t._tag === "NumberKeyword");
+    const hasString = types.some((t: any) => t._tag === "StringKeyword");
+    const hasBoolean = types.some((t: any) => t._tag === "BooleanKeyword");
+
+    if (hasNumber && !hasString && !hasBoolean) return "number";
+    if (hasBoolean && !hasString && !hasNumber) return "boolean";
+  }
+
+  // Handle Literal
+  if (ast._tag === "Literal") {
+    const literal = ast.literal;
+    if (typeof literal === "boolean") return "boolean";
+    if (typeof literal === "number") return "number";
+    return "string";
+  }
+
+  return "string";
+}
+
+/**
+ * Extract description from schema annotations.
+ */
+function extractDescription(ast: any): string | undefined {
+  if (!ast) return undefined;
+
+  const annotations = ast.annotations || {};
+
+  // Check string keys first
+  if (annotations.description) {
+    return String(annotations.description);
+  }
+
+  // Check Symbol keys for Description annotation
+  const symbolKeys = Object.getOwnPropertySymbols(annotations);
+  for (const key of symbolKeys) {
+    const keyStr = String(key);
+    if (keyStr.includes("Description")) {
+      return String(annotations[key]);
+    }
+  }
+
+  // Check nested refinements
+  if (ast._tag === "Refinement" && ast.from) {
+    return extractDescription(ast.from);
   }
 
   return undefined;

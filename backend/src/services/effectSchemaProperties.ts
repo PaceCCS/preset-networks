@@ -158,11 +158,14 @@ export async function getBlockSchemaProperties(
             block_type: blockType,
             property: propName,
             required: isRequired,
+            type: propMetadata.type,
             title: propMetadata.title,
+            description: propMetadata.description,
             dimension: propMetadata.dimension,
             defaultUnit: propMetadata.defaultUnit,
             min: propMetadata.min,
             max: propMetadata.max,
+            enumValues: propMetadata.enumValues,
           };
         }
       }
@@ -185,11 +188,14 @@ export async function getBlockSchemaProperties(
             block_type: blockType,
             property: propName,
             required: isRequired,
+            type: propMetadata.type,
             title: propMetadata.title,
+            description: propMetadata.description,
             dimension: propMetadata.dimension,
             defaultUnit: propMetadata.defaultUnit,
             min: propMetadata.min,
             max: propMetadata.max,
+            enumValues: propMetadata.enumValues,
           };
         }
       }
@@ -266,11 +272,14 @@ export async function getNetworkSchemas(
               block_type: blockType,
               property: propName,
               required: isRequired,
+              type: propMetadata.type,
               title: propMetadata.title,
+              description: propMetadata.description,
               dimension: propMetadata.dimension,
               defaultUnit: propMetadata.defaultUnit,
               min: propMetadata.min,
               max: propMetadata.max,
+              enumValues: propMetadata.enumValues,
             };
           }
         }
