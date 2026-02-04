@@ -106,6 +106,10 @@ function blockToToml(block: Record<string, unknown>): string[] {
  * - Each group to a separate TOML file (group-id.toml)
  * - Each branch to a separate TOML file (branch-id.toml)
  * - Global defaults to config.toml [properties] section
+ *
+ * Note: The Rust parser requires a `position` field for all nodes.
+ * Since we're only using this for property resolution (not UI rendering),
+ * we use a dummy position {x: 0, y: 0}.
  */
 export function networkDataToTomlFiles(network: NetworkData): TomlFiles {
   const files: Record<string, string> = {};
@@ -121,15 +125,24 @@ export function networkDataToTomlFiles(network: NetworkData): TomlFiles {
       lines.push(`label = ${toTomlValue(label)}`);
     }
 
-    // Add any extra group-level properties (for inheritance)
+    // Add any extra group-level properties (for inheritance) BEFORE [position]
     // Skip branchIds as those are implicit from branch parentId
+    // Note: These must come before [position] or they'll be part of that section
     const extraLines = objectToTomlLines(extra as Record<string, unknown>, [
       "id",
       "label",
       "branchIds",
       "type",
+      "position",
     ]);
     lines.push(...extraLines);
+
+    // Required position field for Rust parser (dummy value for resolution)
+    // This must come AFTER extra properties so they don't become part of [position]
+    lines.push("");
+    lines.push("[position]");
+    lines.push("x = 0.0");
+    lines.push("y = 0.0");
 
     files[`${id}.toml`] = lines.join("\n");
   }
@@ -145,10 +158,11 @@ export function networkDataToTomlFiles(network: NetworkData): TomlFiles {
       lines.push(`label = ${toTomlValue(label)}`);
     }
     if (parentId !== undefined) {
-      lines.push(`parent_id = ${toTomlValue(parentId)}`);
+      lines.push(`parentId = ${toTomlValue(parentId)}`);
     }
 
-    // Add any extra branch-level properties (for inheritance)
+    // Add any extra branch-level properties (for inheritance) BEFORE [position]
+    // Note: These must come before [position] or they'll be part of that section
     const extraLines = objectToTomlLines(extra as Record<string, unknown>, [
       "id",
       "label",
@@ -156,8 +170,16 @@ export function networkDataToTomlFiles(network: NetworkData): TomlFiles {
       "parent_id",
       "blocks",
       "type",
+      "position",
     ]);
     lines.push(...extraLines);
+
+    // Required position field for Rust parser (dummy value for resolution)
+    // This must come AFTER extra properties so they don't become part of [position]
+    lines.push("");
+    lines.push("[position]");
+    lines.push("x = 0.0");
+    lines.push("y = 0.0");
 
     // Add blocks as [[block]] arrays
     if (blocks && blocks.length > 0) {
