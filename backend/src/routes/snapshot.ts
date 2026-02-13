@@ -138,12 +138,6 @@ snapshotRoutes.post("/run", async (c) => {
       includeAllPipes: body.includeAllPipes,
     };
 
-    // Log the request
-    console.log(
-      "[Snapshot Run] Request:",
-      JSON.stringify(scenarioRequest, null, 2),
-    );
-
     // Call the Scenario Modeller API
     let scenarioResponse: ScenarioOkResponse | ScenarioFailResponse;
     let usedMock = false;

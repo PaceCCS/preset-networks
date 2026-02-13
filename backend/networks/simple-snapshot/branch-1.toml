@@ -1,9 +1,6 @@
 type = "branch"
 
 label = "Branch 1"
-length = "10 km"
-diameter = "24 in"
-uValue = "0.03 W/m²*K"
 ambientTemperature = "20 °C"
 
 [position]
@@ -21,22 +18,9 @@ carbonDioxideFraction = "1.0"
 [[block]]
 quantity = 1
 type = "Pipe"
-length = "10 km"
 diameter = "24 in"
 uValue = "0.03 W/m²*K"
-ambientTemperature = "20 °C"
-
-[[block]]
-quantity = 1
-type = "Pipe"
-
-[[block]]
-quantity = 1
-type = "Pipe"
-
-[[block]]
-quantity = 1
-type = "Pipe"
+elevationProfile = "assets/segments.csv"
 
 [[block]]
 quantity = 1

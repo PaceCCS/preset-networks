@@ -238,7 +238,7 @@ const COMPONENT_REQUIRED_PROPERTIES: Record<
   ],
   scavenger: [{ property: "enabled", unit: "boolean", required: false }],
   pipe: [
-    { property: "length", unit: "meters", required: true },
+    { property: "elevationProfile", unit: "string", required: true },
     { property: "diameter", unit: "meters", required: true },
     { property: "uValue", unit: "wPerM2K", required: true },
     { property: "ambientTemperature", unit: "celsius", required: true },
@@ -577,6 +577,11 @@ function extractBlockConditions(
   const sourceBlockId = `${branchId}_blocks_${blockIndex}`;
 
   for (const propDef of requiredProps) {
+    // Skip string-type properties (e.g., elevationProfile) — they are file paths, not conditions
+    if (propDef.unit === "string") {
+      continue;
+    }
+
     const key = `${componentType}|${componentId}|${propDef.property}`;
 
     // Try to find the property in the block
@@ -821,6 +826,90 @@ function blockToSeriesComponent(
 }
 
 // ============================================================================
+// Pipe Elevation Profile Parsing
+// ============================================================================
+
+type Segment = {
+  startZ: number;
+  segmentLength: number;
+};
+
+/**
+ * Parse a CSV elevation profile into segments.
+ * Expects columns: start_x,start_y,start_z,end_x,end_y,end_z,segment_start,segment_end,segment_length
+ */
+async function parseElevationProfile(csvPath: string): Promise<Segment[]> {
+  const content = await fs.readFile(csvPath, "utf-8");
+  const lines = content.trim().split("\n");
+
+  // Skip header row
+  const header = lines[0].split(",");
+  const startZIdx = header.indexOf("start_z");
+  const segLenIdx = header.indexOf("segment_length");
+
+  if (startZIdx === -1 || segLenIdx === -1) {
+    throw new Error(
+      `CSV missing required columns (start_z, segment_length): ${csvPath}`,
+    );
+  }
+
+  const segments: Segment[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = line.split(",");
+    segments.push({
+      startZ: parseFloat(cols[startZIdx]),
+      segmentLength: parseFloat(cols[segLenIdx]),
+    });
+  }
+
+  return segments;
+}
+
+/**
+ * Expand a Pipe block into multiple series components, one per CSV segment.
+ * Each component gets segment-level length and elevation, plus shared pipe properties.
+ */
+async function pipeBlockToSeriesComponents(
+  block: NetworkBlock,
+  branchId: string,
+  networkPath: string,
+): Promise<SeriesComponent[]> {
+  const csvRelPath = block.elevationProfile as string;
+  const csvAbsPath = path.resolve(networkPath, csvRelPath);
+  const segments = await parseElevationProfile(csvAbsPath);
+
+  const components: SeriesComponent[] = [];
+
+  // Convert shared pipe properties once
+  const diameter = convertToTargetUnit(block.diameter, "diameter");
+  const uValue = convertToTargetUnit(block.uValue, "uValue");
+  const ambientTemperature = convertToTargetUnit(
+    block.ambientTemperature,
+    "ambientTemperature",
+  );
+
+  for (const segment of segments) {
+    const comp: SeriesComponent = {
+      elem: block.type,
+      name: branchId,
+      length: segment.segmentLength,
+      elevation: segment.startZ,
+    };
+
+    if (diameter !== null) comp.diameter = diameter;
+    if (uValue !== null) comp.uValue = uValue;
+    if (ambientTemperature !== null)
+      comp.ambientTemperature = ambientTemperature;
+
+    components.push(comp);
+  }
+
+  return components;
+}
+
+// ============================================================================
 // Main Transform Function
 // ============================================================================
 
@@ -838,7 +927,7 @@ export async function transformNetworkToSnapshotConditions(
 ): Promise<SnapshotTransformResult> {
   await dim.init();
 
-  const { data: networkData } = await loadNetworkData(source);
+  const { data: networkData, networkPath } = await loadNetworkData(source);
   const { branches, edges } = networkData;
 
   // Validate all blocks and get resolved properties (with inheritance)
@@ -881,9 +970,18 @@ export async function transformNetworkToSnapshotConditions(
       const componentId = getComponentId(enrichedBlock, branch.id, i);
 
       // Add to branch components (use branch.id as the name for response mapping)
-      branchComponents.push(
-        blockToSeriesComponent(enrichedBlock, branch.id, i),
-      );
+      if (componentType === "pipe" && enrichedBlock.elevationProfile && networkPath) {
+        const pipeComponents = await pipeBlockToSeriesComponents(
+          enrichedBlock,
+          branch.id,
+          networkPath,
+        );
+        branchComponents.push(...pipeComponents);
+      } else {
+        branchComponents.push(
+          blockToSeriesComponent(enrichedBlock, branch.id, i),
+        );
+      }
 
       const validation = extractBlockConditions(
         enrichedBlock,

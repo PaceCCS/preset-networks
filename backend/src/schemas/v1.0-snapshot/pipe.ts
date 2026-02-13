@@ -3,12 +3,11 @@ import { Schema } from "effect";
 export const PipeSchema = Schema.Struct({
   type: Schema.Literal("Pipe"),
   quantity: Schema.optional(Schema.Number),
-  length: Schema.Number.pipe(
-    Schema.greaterThan(200),
+  elevationProfile: Schema.String.pipe(
     Schema.annotations({
-      dimension: "length",
-      defaultUnit: "m",
-      title: "Length",
+      dimension: "string",
+      defaultUnit: "",
+      title: "Elevation Profile",
     }),
   ),
 
