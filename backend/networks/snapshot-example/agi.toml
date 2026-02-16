@@ -1,0 +1,22 @@
+type = "branch"
+
+label = "agi"
+
+[position]
+x = 500
+y = 100
+
+[[outgoing]]
+target = "offshore-pipline-wirral-to-morecambe-bay-south"
+weight = 1
+
+[[block]]
+quantity = 1
+type = "Compressor"
+label = "compressor-1"
+maximumOutletPressure = "200 bar"
+minimumUpstreamPressure = "20 bar"
+maximumOperatingTemperature = "145 C"
+isentropicEfficiency = 1
+mechanicalEfficiency = 1
+enabled = true

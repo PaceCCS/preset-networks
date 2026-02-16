@@ -1,0 +1,20 @@
+type = "branch"
+
+label = "offshore-pipline-wirral-to-morecambe-bay-south"
+
+[position]
+x = 750
+y = 100
+
+[[outgoing]]
+target = "morecambe-bay-south-reservoir"
+weight = 1
+
+[[block]]
+quantity = 1
+type = "Pipe"
+elevationProfile = "assets/offshore-segments.csv"
+diameter = "24 in"
+uValue = "0.03 W/m^2*K"
+ambientMedium = "Water"
+roughness = 1

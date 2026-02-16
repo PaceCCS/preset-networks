@@ -1,0 +1,332 @@
+{
+  "conditions": {
+    "network|Network|airMedium": {
+      "celsius": 25
+    },
+    "network|Network|soilMedium": {
+      "celsius": 20
+    },
+    "network|Network|waterMedium": {
+      "celsius": 12
+    },
+    "source|emitter-1|flowrate": {
+      "mtpa": 1
+    },
+    "source|emitter-1|pressure": {
+      "bara": 30
+    },
+    "source|emitter-1|temperature": {
+      "celsius": 55
+    },
+    "source|emitter-1|enabled": {
+      "boolean": true
+    },
+    "source|emitter-1|carbonDioxideFraction": {
+      "molFraction": 1
+    },
+    "reservoir|morecambe-bay-south-reservoir|enabled": {
+      "boolean": true
+    }
+  },
+  "structure": {
+    "series": {
+      "emitter-1-start": [
+        {
+          "elem": "Source",
+          "name": "emitter-1",
+          "pressure": 3000000,
+          "temperature": 328.15,
+          "flowrate": 31.68808781402895,
+          "elevation": 0,
+          "carbonDioxideFraction": 1,
+          "intermediate": false
+        },
+        {
+          "elem": "Valve",
+          "name": "emitter-1 valve",
+          "elevation": 0,
+          "minimumPressure": 0
+        }
+      ],
+      "emitter-1-end": [
+        {
+          "elem": "Sink",
+          "name": "emitter-1-end",
+          "elevation": 0,
+          "pressure": 2000000
+        }
+      ],
+
+      "onshore-trunk-pipline-start": [
+        {
+          "elem": "Source",
+          "name": "onshore-trunk-pipline-source",
+          "pressure": 19000000,
+          "temperature": 328.15,
+          "flowrate": 31.68808781402895,
+          "elevation": 0,
+          "intermediate": true
+        }
+      ],
+      "onshore-trunk-pipline": [
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-onshore-trunk-pipline-0",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Soil",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-onshore-trunk-pipline-1",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Soil",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-onshore-trunk-pipline-2",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Soil",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-onshore-trunk-pipline-3",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Soil",
+          "u_wall": 0.03,
+          "roughness": 1
+        }
+      ],
+      "onshore-trunk-pipline-end": [
+        {
+          "elem": "Sink",
+          "name": "onshore-trunk-pipline-sink",
+          "elevation": 0,
+          "pressure": 2000000
+        }
+      ],
+
+      "agi-start": [
+        {
+          "elem": "Source",
+          "name": "agi-source",
+          "pressure": 19000000,
+          "temperature": 328.15,
+          "flowrate": 31.68808781402895,
+          "elevation": 0,
+          "intermediate": true
+        }
+      ],
+      "agi": [
+        {
+          "elem": "Compressor",
+          "name": "compressor-1",
+          "elevation": 0,
+          "maximumOutletPressure": 20000000,
+          "minimumUpstreamPressure": 2000000,
+          "maximumOperatingTemperature": 418.15,
+          "isentropicEfficiency": 1,
+          "mechanicalEfficiency": 1,
+          "enabled": true
+        }
+      ],
+      "agi-end": [
+        {
+          "elem": "Sink",
+          "name": "agi-sink",
+          "elevation": 0,
+          "pressure": 2000000
+        }
+      ],
+
+      "offshore-pipline-wirral-to-morecambe-bay-south-start": [
+        {
+          "elem": "Source",
+          "name": "offshore-pipline-wirral-to-morecambe-bay-south-source",
+          "pressure": 19000000,
+          "temperature": 328.15,
+          "flowrate": 31.68808781402895,
+          "elevation": 0,
+          "intermediate": true
+        }
+      ],
+      "offshore-pipline-wirral-to-morecambe-bay-south": [
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-0",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Water",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-1",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Water",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-2",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Water",
+          "u_wall": 0.03,
+          "roughness": 1
+        },
+        {
+          "elem": "PipeSeg",
+          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-3",
+          "elevation": 0,
+          "length": 10000,
+          "diameters": [0.6095999999999999],
+          "ambient_medium": "Water",
+          "u_wall": 0.03,
+          "roughness": 1
+        }
+      ],
+      "offshore-pipline-wirral-to-morecambe-bay-south-end": [
+        {
+          "elem": "Sink",
+          "name": "offshore-pipline-wirral-to-morecambe-bay-south-sink",
+          "elevation": 0,
+          "pressure": 2000000
+        }
+      ],
+
+      "morecambe-bay-south-reservoir-start": [
+        {
+          "elem": "Source",
+          "name": "morecambe-bay-south-reservoir-source",
+          "pressure": 19000000,
+          "temperature": 328.15,
+          "flowrate": 31.68808781402895,
+          "elevation": 0,
+          "intermediate": true
+        },
+        {
+          "elem": "Heater",
+          "name": "morecambe-bay-south-reservoir-heater",
+          "elevation": 0,
+          "outletTemperature": 298.15,
+          "pressureDelta": -100000,
+          "isentropicEfficiency": 1,
+          "mechanicalEfficiency": 1,
+          "enabled": true
+        }
+      ],
+      "morecambe-bay-south-reservoir": [
+        {
+          "elem": "Well",
+          "name": "morecambe-bay-south-well",
+          "elevation": 0,
+          "pressureUnit": "Bara",
+          "flowrateType": "Mass",
+          "flowrateUnit": "Mtpa",
+          "densityUnit": "KgPerM3",
+          "split": 4,
+          "pf_exponents": ["000", "010", "100", "001"],
+          "pf_coefficients": [
+            -5.58419353175751, -2.74211714865716, -0.213292077872121,
+            0.0195785126128553
+          ]
+        },
+        {
+          "elem": "Perforation",
+          "name": "morecambe-bay-south-perforation",
+          "elevation": -800.0,
+          "pressureUnit": "Bara",
+          "flowrateUnit": "Kgps",
+          "split": 1,
+          "pf_exponents": ["00", "01", "10"],
+          "pf_coefficients": [
+            2.28020995800166, 0.0340005451948352, -0.02365752079062
+          ]
+        },
+        {
+          "elem": "Reservoir",
+          "name": "morecambe-bay-south-reservoir",
+          "elevation": -800,
+          "pressure": 2000000,
+          "pressureUnit": "Bara",
+          "m_coefficients": ["0", "1", "2", "3", "4"],
+          "m_exponents": [6.06178, 3.97e-6, -8.2e-14, 8.04e-22, -2.82e-30],
+          "enabled": true
+        }
+      ]
+    },
+
+    "subnets": {
+      "emitter-1": {
+        "subnetName": "emitter-1",
+        "downstreamSubnetName": "onshore-trunk-pipline",
+        "componentSeriesMap": {
+          "emitter-1-start": ["emitter-1-end"]
+        }
+      },
+
+      "onshore-trunk-pipline": {
+        "subnetName": "onshore-trunk-pipline",
+        "downstreamSubnetName": "agi",
+        "componentSeriesMap": {
+          "onshore-trunk-pipline-start": ["onshore-trunk-pipline"],
+          "onshore-trunk-pipline": ["onshore-trunk-pipline-end"]
+        }
+      },
+
+      "agi": {
+        "subnetName": "agi",
+        "downstreamSubnetName": "offshore-pipline-wirral-to-morecambe-bay-south",
+        "componentSeriesMap": {
+          "agi-start": ["agi"],
+          "agi": ["agi-end"]
+        }
+      },
+
+      "offshore-pipline-wirral-to-morecambe-bay-south": {
+        "subnetName": "offshore-pipline-wirral-to-morecambe-bay-south",
+        "downstreamSubnetName": "morecambe-bay-south-reservoir",
+        "componentSeriesMap": {
+          "offshore-pipline-wirral-to-morecambe-bay-south-start": [
+            "offshore-pipline-wirral-to-morecambe-bay-south"
+          ],
+          "offshore-pipline-wirral-to-morecambe-bay-south": [
+            "offshore-pipline-wirral-to-morecambe-bay-south-end"
+          ]
+        }
+      },
+
+      "morecambe-bay-south-reservoir": {
+        "subnetName": "morecambe-bay-south-reservoir",
+        "downstreamSubnetName": "",
+        "componentSeriesMap": {
+          "morecambe-bay-south-reservoir-start": [
+            "morecambe-bay-south-reservoir"
+          ]
+        }
+      }
+    },
+    "componentYamlFilenames": []
+  },
+  "includeAllPipes": false
+}

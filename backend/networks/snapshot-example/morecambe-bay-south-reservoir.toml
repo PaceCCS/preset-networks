@@ -1,0 +1,55 @@
+type = "branch"
+
+label = "morecambe-bay-south-reservoir"
+
+[position]
+x = 1200
+y = 200
+
+[[block]]
+quantity = 1
+type = "Heater"
+outletTemperature = "25 C"
+pressureDelta = "-1 bar"
+isentropicEfficiency = 1
+mechanicalEfficiency = 1
+enabled = true
+
+[[block]]
+quantity = 1
+type = "Well"
+label = "morecambe-bay-south-well"
+pressureUnit = "Bara"
+flowrateType = "Mass"
+flowrateUnit = "Mtpa"
+densityUnit = "KgPerM3"
+split = 4
+pf_exponents = ["000", "010", "100", "001"]
+pf_coefficients = [
+  -5.58419353175751,
+  -2.74211714865716,
+  -0.213292077872121,
+  0.0195785126128553,
+]
+
+[[block]]
+quantity = 1
+type = "Perforation"
+label = "morecambe-bay-south-perforation"
+elevation = -800.0
+pressureUnit = "Bara"
+flowrateUnit = "Kgps"
+split = 1
+pf_exponents = ["00", "01", "10"]
+pf_coefficients = [2.28020995800166, 0.0340005451948352, -0.02365752079062]
+
+[[block]]
+quantity = 1
+type = "Reservoir"
+label = "morecambe-bay-south-reservoir"
+elevation = -800
+pressure = "20 bar"
+pressureUnit = "Bara"
+m_coefficients = ["0", "1", "2", "3", "4"]
+m_exponents = [6.06178, 3.97e-6, -8.2e-14, 8.04e-22, -2.82e-30]
+enabled = true

@@ -1,0 +1,23 @@
+type = "branch"
+
+label = "emitter-1"
+
+[position]
+x = 0
+y = 0
+
+[[outgoing]]
+target = "onshore-trunk-pipline"
+weight = 1
+
+[[block]]
+quantity = 1
+type = "Source"
+flowrate = "1 mtpa"
+pressure = "30 bar"
+temperature = "55 C"
+carbonDioxideFraction = 1.0
+
+[[block]]
+quantity = 1
+type = "Valve"
