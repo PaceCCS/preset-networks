@@ -5,8 +5,6 @@ export const PipeSchema = Schema.Struct({
   quantity: Schema.optional(Schema.Number),
   elevationProfile: Schema.String.pipe(
     Schema.annotations({
-      dimension: "string",
-      defaultUnit: "",
       title: "Elevation Profile",
     }),
   ),

@@ -14,7 +14,11 @@ export const networkRoutes = new Hono();
  * Define which networks are available via the API
  * Labels are defined in each network's config.toml
  */
-const AVAILABLE_NETWORKS = ["preset1", "simple-snapshot"] as const;
+const AVAILABLE_NETWORKS = [
+  "preset1",
+  "simple-snapshot",
+  "snapshot-example",
+] as const;
 
 /**
  * GET /api/network

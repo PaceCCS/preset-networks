@@ -108,6 +108,7 @@ export type Subnet = {
  * Network structure for the Scenario Modeller.
  */
 export type NetworkStructure = {
+  series: Record<string, SeriesComponent[]>;
   subnets: Record<string, Subnet>;
   componentYamlFilenames: string[];
 };
@@ -118,7 +119,6 @@ export type NetworkStructure = {
 export type SnapshotTransformResult = {
   conditions: Conditions;
   networkStructure: NetworkStructure;
-  series: Record<string, SeriesComponent[]>;
   validation: {
     isReady: boolean;
     summary: {
@@ -150,6 +150,7 @@ const BLOCK_TYPE_TO_COMPONENT: Record<string, string> = {
   Valve: "valve",
   Well: "well",
   Reservoir: "reservoir",
+  Perforation: "perforation",
   Scavenger: "scavenger",
   // Alternate names
   Emitter: "source",
@@ -549,19 +550,6 @@ function convertToUnitValue(value: unknown, unit: string): UnitValue | null {
 }
 
 /**
- * Extract a component ID from a block.
- * Uses the same format as validation: branchId/blocks/index
- */
-function getComponentId(
-  block: NetworkBlock,
-  branchId: string,
-  blockIndex: number,
-): string {
-  // return `${branchId}/blocks/${blockIndex}`;
-  return `${branchId}_blocks_${blockIndex}`;
-}
-
-/**
  * Extract conditions from a single block.
  */
 function extractBlockConditions(
@@ -687,12 +675,45 @@ function buildDownstreamMap(edges: NetworkEdge[]): Map<string, string> {
 }
 
 /**
- * Build the component series map for a branch.
- * Since we have one series of components per branch, this just maps
- * the branch ID to an empty array (the series itself is in the `series` field).
+ * Block types that are classified as "start" blocks when they appear
+ * at the beginning of a branch (before any "main" block type).
  */
-function buildComponentSeriesMap(branchId: string): Record<string, string[]> {
-  return { [branchId]: [] };
+const START_BLOCK_TYPES = new Set(["Source", "Valve", "Heater", "Emitter"]);
+
+/**
+ * Determine the component name for a block based on the naming rules.
+ *
+ * - Non-intermediate Source: branchId (or block.label if present)
+ * - Intermediate Source: {branchId}-source
+ * - Valve: {sourceName} valve
+ * - PipeSeg: handled separately in pipeBlockToSeriesComponents
+ * - Other: block.label or {branchId}-{componentType}
+ */
+function getComponentName(
+  block: NetworkBlock,
+  branchId: string,
+  isIntermediate: boolean,
+  sourceName?: string,
+): string {
+  const blockType = block.type;
+
+  if (blockType === "Source" || blockType === "Emitter") {
+    if (isIntermediate) {
+      return `${branchId}-source`;
+    }
+    return block.label || branchId;
+  }
+
+  if (blockType === "Valve") {
+    return `${sourceName || branchId} valve`;
+  }
+
+  if (block.label) {
+    return block.label;
+  }
+
+  const componentType = BLOCK_TYPE_TO_COMPONENT[blockType];
+  return `${branchId}-${componentType || blockType.toLowerCase()}`;
 }
 
 /**
@@ -762,24 +783,25 @@ function convertToTargetUnit(
  * Maps block properties to the expected Scenario Modeller format.
  * Property values are converted to target units (numbers).
  *
- * Note: The name is set to the branchId (e.g., "branch-1") to enable mapping
- * response properties back to dagger network elements. The response uses keys
- * like "reservoir|name|inlet_temperature" where the middle part is the name
- * from the series.
+ * @param block - The enriched block to convert
+ * @param componentName - The component name for response mapping
  */
 function blockToSeriesComponent(
   block: NetworkBlock,
-  branchId: string,
-  blockIndex: number,
+  componentName: string,
 ): SeriesComponent {
   const component: SeriesComponent = {
     elem: block.type,
-    name: branchId,
+    name: componentName,
   };
 
-  // Copy relevant properties from the block, converting to target units
-  // These are the properties that the Scenario Modeller expects
-  const propertiesToCopy = [
+  // Default elevation to 0 if not set on the block
+  if (block.elevation === undefined || block.elevation === null) {
+    component.elevation = 0;
+  }
+
+  // Properties that need unit conversion
+  const convertibleProperties = [
     "elevation",
     "pressure",
     "temperature",
@@ -813,12 +835,31 @@ function blockToSeriesComponent(
     "oxygenFraction",
   ];
 
-  for (const prop of propertiesToCopy) {
+  // Properties passed through without conversion (arrays, strings, etc.)
+  const passThroughProperties = [
+    "pressureUnit",
+    "flowrateType",
+    "flowrateUnit",
+    "densityUnit",
+    "split",
+    "pf_exponents",
+    "pf_coefficients",
+    "m_coefficients",
+    "m_exponents",
+  ];
+
+  for (const prop of convertibleProperties) {
     if (block[prop] !== undefined && block[prop] !== null) {
       const convertedValue = convertToTargetUnit(block[prop], prop);
       if (convertedValue !== null) {
         component[prop] = convertedValue;
       }
+    }
+  }
+
+  for (const prop of passThroughProperties) {
+    if (block[prop] !== undefined && block[prop] !== null) {
+      component[prop] = block[prop];
     }
   }
 
@@ -868,8 +909,16 @@ async function parseElevationProfile(csvPath: string): Promise<Segment[]> {
 }
 
 /**
- * Expand a Pipe block into multiple series components, one per CSV segment.
+ * Expand a Pipe block into multiple PipeSeg series components, one per CSV segment.
  * Each component gets segment-level length and elevation, plus shared pipe properties.
+ *
+ * Output format:
+ * - elem: "PipeSeg" (not "Pipe")
+ * - name: "Pipe-{label or branchId}-{index}"
+ * - diameters: [diameter] (array)
+ * - ambient_medium: string (e.g., "Soil", "Water", "Air")
+ * - u_wall: uValue (renamed)
+ * - roughness: pass-through
  */
 async function pipeBlockToSeriesComponents(
   block: NetworkBlock,
@@ -885,23 +934,23 @@ async function pipeBlockToSeriesComponents(
   // Convert shared pipe properties once
   const diameter = convertToTargetUnit(block.diameter, "diameter");
   const uValue = convertToTargetUnit(block.uValue, "uValue");
-  const ambientTemperature = convertToTargetUnit(
-    block.ambientTemperature,
-    "ambientTemperature",
-  );
+  const pipeLabel = block.label || branchId;
 
-  for (const segment of segments) {
+  for (let idx = 0; idx < segments.length; idx++) {
+    const segment = segments[idx];
     const comp: SeriesComponent = {
-      elem: block.type,
-      name: branchId,
+      elem: "PipeSeg",
+      name: `Pipe-${pipeLabel}-${idx}`,
       length: segment.segmentLength,
       elevation: segment.startZ,
     };
 
-    if (diameter !== null) comp.diameter = diameter;
-    if (uValue !== null) comp.uValue = uValue;
-    if (ambientTemperature !== null)
-      comp.ambientTemperature = ambientTemperature;
+    if (diameter !== null) comp.diameters = [diameter];
+    if (block.ambientMedium !== undefined) comp.ambient_medium = block.ambientMedium;
+    if (uValue !== null) comp.u_wall = uValue;
+    if (block.roughness !== undefined && block.roughness !== null) {
+      comp.roughness = block.roughness;
+    }
 
     components.push(comp);
   }
@@ -914,7 +963,52 @@ async function pipeBlockToSeriesComponents(
 // ============================================================================
 
 /**
+ * Default pressure for intermediate sources (190 bar in Pa).
+ * This is a maximum for the search range; the true value is determined
+ * by the fluid upstream.
+ */
+const INTERMEDIATE_SOURCE_PRESSURE_PA = 19000000;
+
+/**
+ * Build the converted properties of the first Source block in the network.
+ * Used to populate intermediate Source components for non-first branches.
+ * Copies temperature and flowrate from the first source; pressure uses
+ * a fixed default (190 bar) since it serves as a search range bound.
+ */
+function buildFirstSourceProperties(
+  block: NetworkBlock,
+): Record<string, unknown> {
+  const props: Record<string, unknown> = {
+    elevation: 0,
+    pressure: INTERMEDIATE_SOURCE_PRESSURE_PA,
+  };
+
+  const convertible = ["temperature", "flowrate"];
+
+  for (const prop of convertible) {
+    if (block[prop] !== undefined && block[prop] !== null) {
+      const converted = convertToTargetUnit(block[prop], prop);
+      if (converted !== null) {
+        props[prop] = converted;
+      }
+    }
+  }
+
+  return props;
+}
+
+/**
  * Transform a network into snapshot conditions.
+ *
+ * For each branch, blocks are split into three groups:
+ * - Start blocks: Leading Source, Valve, Heater blocks (before any "main" type)
+ * - Main blocks: Pipe, Compressor, Well, Perforation, Reservoir, and everything else
+ * - End blocks: Auto-generated Sink (if the branch has a downstream)
+ *
+ * Named series are generated:
+ * - {branchId}-start: start blocks + auto-generated intermediate Source if needed
+ * - {branchId}: main blocks (omitted if empty)
+ * - {branchId}-end: auto-generated Sink (omitted for terminal branches)
  *
  * @param source - Network source (networkId or inline data)
  * @param schemaSet - Schema set to use for property resolution (default: "v1.0-snapshot")
@@ -940,61 +1034,135 @@ export async function transformNetworkToSnapshotConditions(
   // Build downstream relationship map from edges
   const downstreamMap = buildDownstreamMap(edges);
 
+  // Determine which branches are "first" (not a target of any edge)
+  const targetBranchIds = new Set(edges.map((e) => e.target));
+
+  // Find the first source block properties for intermediate source generation
+  let firstSourceProps: Record<string, unknown> = { elevation: 0 };
+  for (const branch of branches) {
+    if (!targetBranchIds.has(branch.id)) {
+      for (let i = 0; i < branch.blocks.length; i++) {
+        const block = branch.blocks[i];
+        if (block.type === "Source" || block.type === "Emitter") {
+          const enriched = getEnrichedBlockFromValidation(
+            block as Block,
+            validationResults,
+            branch.id,
+            i,
+          );
+          firstSourceProps = buildFirstSourceProperties(enriched);
+          break;
+        }
+      }
+      break;
+    }
+  }
+
   const componentValidations: ComponentValidation[] = [];
   const conditions: Conditions = {};
   const series: Record<string, SeriesComponent[]> = {};
   const subnets: Record<string, Subnet> = {};
 
-  // Process all blocks from all branches
   for (const branch of branches) {
-    const branchComponents: SeriesComponent[] = [];
+    const isFirst = !targetBranchIds.has(branch.id);
+    const hasDownstream = downstreamMap.has(branch.id);
+
+    // ------------------------------------------------------------------
+    // Classify blocks into start and main groups (keeping original index)
+    // ------------------------------------------------------------------
+    type ClassifiedBlock = { block: NetworkBlock; originalIndex: number };
+    const startBlocks: ClassifiedBlock[] = [];
+    const mainBlocks: ClassifiedBlock[] = [];
+    let reachedMain = false;
 
     for (let i = 0; i < branch.blocks.length; i++) {
-      const rawBlock = branch.blocks[i];
-
-      // Map block type to snapshot component type
-      const componentType = BLOCK_TYPE_TO_COMPONENT[rawBlock.type];
-      if (!componentType) {
-        // Skip blocks that don't map to snapshot components
-        continue;
+      const block = branch.blocks[i];
+      if (!reachedMain && START_BLOCK_TYPES.has(block.type)) {
+        startBlocks.push({ block, originalIndex: i });
+      } else {
+        reachedMain = true;
+        mainBlocks.push({ block, originalIndex: i });
       }
+    }
 
-      // Get enriched block with inherited properties from validation results
+    // ------------------------------------------------------------------
+    // Build start series
+    // ------------------------------------------------------------------
+    const startSeriesId = `${branch.id}-start`;
+    const startComponents: SeriesComponent[] = [];
+
+    // Determine the source name for this branch (used by Valve naming)
+    const hasExplicitSource = startBlocks.some(
+      (b) => b.block.type === "Source" || b.block.type === "Emitter",
+    );
+
+    let sourceName: string;
+    if (isFirst) {
+      const sourceBlock = startBlocks.find(
+        (b) => b.block.type === "Source" || b.block.type === "Emitter",
+      );
+      sourceName = sourceBlock?.block.label || branch.id;
+    } else {
+      sourceName = `${branch.id}-source`;
+    }
+
+    // For non-first branches without an explicit Source, add intermediate Source
+    if (!isFirst && !hasExplicitSource) {
+      startComponents.push({
+        elem: "Source",
+        name: sourceName,
+        intermediate: true,
+        ...firstSourceProps,
+      } as SeriesComponent);
+    }
+
+    // Process start blocks
+    for (const { block: rawBlock, originalIndex } of startBlocks) {
+      const componentType = BLOCK_TYPE_TO_COMPONENT[rawBlock.type];
+      if (!componentType) continue;
+
       const enrichedBlock = getEnrichedBlockFromValidation(
         rawBlock as Block,
         validationResults,
         branch.id,
-        i,
+        originalIndex,
       );
 
-      const componentId = getComponentId(enrichedBlock, branch.id, i);
+      const isIntermediateSource = !isFirst && (rawBlock.type === "Source" || rawBlock.type === "Emitter");
+      const componentName = getComponentName(
+        enrichedBlock,
+        branch.id,
+        isIntermediateSource,
+        sourceName,
+      );
 
-      // Add to branch components (use branch.id as the name for response mapping)
-      if (componentType === "pipe" && enrichedBlock.elevationProfile && networkPath) {
-        const pipeComponents = await pipeBlockToSeriesComponents(
-          enrichedBlock,
-          branch.id,
-          networkPath,
-        );
-        branchComponents.push(...pipeComponents);
-      } else {
-        branchComponents.push(
-          blockToSeriesComponent(enrichedBlock, branch.id, i),
-        );
+      const startComp = blockToSeriesComponent(enrichedBlock, componentName);
+
+      // For non-intermediate Sources, explicitly set intermediate: false
+      if (
+        (rawBlock.type === "Source" || rawBlock.type === "Emitter") &&
+        !isIntermediateSource
+      ) {
+        startComp.intermediate = false;
       }
 
+      // For Valves, default minimumPressure to 0
+      if (rawBlock.type === "Valve" && startComp.minimumPressure === undefined) {
+        startComp.minimumPressure = 0;
+      }
+
+      startComponents.push(startComp);
+
+      // Extract conditions using component name as the condition key middle part
       const validation = extractBlockConditions(
         enrichedBlock,
         componentType,
-        componentId,
+        componentName,
         branch.id,
-        i,
+        originalIndex,
       );
-
       componentValidations.push(validation);
 
-      // Add extracted conditions to the conditions map
-      // Skip pipe conditions - they are defined in the series structure, not conditions
       if (componentType !== "pipe") {
         for (const cond of validation.conditions) {
           if (cond.value !== null) {
@@ -1004,14 +1172,115 @@ export async function transformNetworkToSnapshotConditions(
       }
     }
 
-    series[branch.id] = branchComponents;
+    series[startSeriesId] = startComponents;
 
-    // Build subnet for this branch
+    // ------------------------------------------------------------------
+    // Build main series
+    // ------------------------------------------------------------------
+    const mainSeriesId = branch.id;
+    const mainComponents: SeriesComponent[] = [];
+
+    for (const { block: rawBlock, originalIndex } of mainBlocks) {
+      const componentType = BLOCK_TYPE_TO_COMPONENT[rawBlock.type];
+      if (!componentType) continue;
+
+      const enrichedBlock = getEnrichedBlockFromValidation(
+        rawBlock as Block,
+        validationResults,
+        branch.id,
+        originalIndex,
+      );
+
+      if (
+        componentType === "pipe" &&
+        enrichedBlock.elevationProfile &&
+        networkPath
+      ) {
+        const pipeComponents = await pipeBlockToSeriesComponents(
+          enrichedBlock,
+          branch.id,
+          networkPath,
+        );
+        mainComponents.push(...pipeComponents);
+      } else {
+        const componentName = getComponentName(
+          enrichedBlock,
+          branch.id,
+          false,
+          sourceName,
+        );
+        mainComponents.push(
+          blockToSeriesComponent(enrichedBlock, componentName),
+        );
+      }
+
+      // Extract conditions using component name
+      const componentName =
+        componentType === "pipe"
+          ? branch.id
+          : getComponentName(enrichedBlock, branch.id, false, sourceName);
+
+      const validation = extractBlockConditions(
+        enrichedBlock,
+        componentType,
+        componentName,
+        branch.id,
+        originalIndex,
+      );
+      componentValidations.push(validation);
+
+      if (componentType !== "pipe") {
+        for (const cond of validation.conditions) {
+          if (cond.value !== null) {
+            conditions[cond.key] = cond.value;
+          }
+        }
+      }
+    }
+
+    if (mainComponents.length > 0) {
+      series[mainSeriesId] = mainComponents;
+    }
+
+    // ------------------------------------------------------------------
+    // Build end series (auto-generated Sink for non-terminal branches)
+    // ------------------------------------------------------------------
+    const endSeriesId = `${branch.id}-end`;
+
+    if (hasDownstream) {
+      const sinkName = isFirst
+        ? `${branch.id}-end`
+        : `${branch.id}-sink`;
+      series[endSeriesId] = [
+        {
+          elem: "Sink",
+          name: sinkName,
+          elevation: 0,
+          pressure: 2000000,
+        } as SeriesComponent,
+      ];
+    }
+
+    // ------------------------------------------------------------------
+    // Build componentSeriesMap (linked chain: start → main → end)
+    // ------------------------------------------------------------------
+    const seriesChain: string[] = [startSeriesId];
+    if (mainComponents.length > 0) seriesChain.push(mainSeriesId);
+    if (hasDownstream) seriesChain.push(endSeriesId);
+
+    const componentSeriesMap: Record<string, string[]> = {};
+    for (let i = 0; i < seriesChain.length - 1; i++) {
+      componentSeriesMap[seriesChain[i]] = [seriesChain[i + 1]];
+    }
+
+    // ------------------------------------------------------------------
+    // Build subnet
+    // ------------------------------------------------------------------
     const downstreamBranchId = downstreamMap.get(branch.id) || "";
     subnets[branch.id] = {
       subnetName: branch.id,
       downstreamSubnetName: downstreamBranchId,
-      componentSeriesMap: buildComponentSeriesMap(branch.id),
+      componentSeriesMap,
     };
   }
 
@@ -1036,8 +1305,8 @@ export async function transformNetworkToSnapshotConditions(
 
   return {
     conditions,
-    series,
     networkStructure: {
+      series,
       subnets,
       componentYamlFilenames: [],
     },

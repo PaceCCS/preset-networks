@@ -38,7 +38,6 @@ export interface SeriesComponent {
 export interface ScenarioRequest {
   conditions: Conditions;
   structure?: NetworkStructure;
-  series?: Record<string, SeriesComponent[]>;
   includeAllPipes?: boolean;
 }
 
@@ -46,6 +45,7 @@ export interface ScenarioRequest {
  * Network structure definition (optional).
  */
 export interface NetworkStructure {
+  series?: Record<string, SeriesComponent[]>;
   subnets?: Record<string, SubnetStructure>;
   componentYamlFilenames?: string[];
 }

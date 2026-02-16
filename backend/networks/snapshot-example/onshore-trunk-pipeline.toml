@@ -1,0 +1,20 @@
+type = "branch"
+
+label = "onshore-trunk-pipeline"
+
+[position]
+x = 250
+y = 50
+
+[[outgoing]]
+target = "agi"
+weight = 1
+
+[[block]]
+quantity = 1
+type = "Pipe"
+elevationProfile = "assets/onshore-trunk-segments.csv"
+diameter = "24 in"
+uValue = "0.03 W/m^2*K"
+ambientMedium = "Soil"
+roughness = 1
