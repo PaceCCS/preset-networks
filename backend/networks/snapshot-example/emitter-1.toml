@@ -7,7 +7,7 @@ x = 0
 y = 0
 
 [[outgoing]]
-target = "onshore-trunk-pipline"
+target = "onshore-trunk-pipeline"
 weight = 1
 
 [[block]]

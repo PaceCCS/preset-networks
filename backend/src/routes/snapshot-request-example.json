@@ -57,10 +57,10 @@
         }
       ],
 
-      "onshore-trunk-pipline-start": [
+      "onshore-trunk-pipeline-start": [
         {
           "elem": "Source",
-          "name": "onshore-trunk-pipline-source",
+          "name": "onshore-trunk-pipeline-source",
           "pressure": 19000000,
           "temperature": 328.15,
           "flowrate": 31.68808781402895,
@@ -68,10 +68,10 @@
           "intermediate": true
         }
       ],
-      "onshore-trunk-pipline": [
+      "onshore-trunk-pipeline": [
         {
           "elem": "PipeSeg",
-          "name": "Pipe-onshore-trunk-pipline-0",
+          "name": "Pipe-onshore-trunk-pipeline-0",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -81,7 +81,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-onshore-trunk-pipline-1",
+          "name": "Pipe-onshore-trunk-pipeline-1",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -91,7 +91,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-onshore-trunk-pipline-2",
+          "name": "Pipe-onshore-trunk-pipeline-2",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -101,7 +101,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-onshore-trunk-pipline-3",
+          "name": "Pipe-onshore-trunk-pipeline-3",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -110,10 +110,10 @@
           "roughness": 1
         }
       ],
-      "onshore-trunk-pipline-end": [
+      "onshore-trunk-pipeline-end": [
         {
           "elem": "Sink",
-          "name": "onshore-trunk-pipline-sink",
+          "name": "onshore-trunk-pipeline-sink",
           "elevation": 0,
           "pressure": 2000000
         }
@@ -152,10 +152,10 @@
         }
       ],
 
-      "offshore-pipline-wirral-to-morecambe-bay-south-start": [
+      "offshore-pipeline-wirral-to-morecambe-bay-south-start": [
         {
           "elem": "Source",
-          "name": "offshore-pipline-wirral-to-morecambe-bay-south-source",
+          "name": "offshore-pipeline-wirral-to-morecambe-bay-south-source",
           "pressure": 19000000,
           "temperature": 328.15,
           "flowrate": 31.68808781402895,
@@ -163,10 +163,10 @@
           "intermediate": true
         }
       ],
-      "offshore-pipline-wirral-to-morecambe-bay-south": [
+      "offshore-pipeline-wirral-to-morecambe-bay-south": [
         {
           "elem": "PipeSeg",
-          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-0",
+          "name": "Pipe-offshore-pipeline-wirral-to-morecambe-bay-south-0",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -176,7 +176,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-1",
+          "name": "Pipe-offshore-pipeline-wirral-to-morecambe-bay-south-1",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -186,7 +186,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-2",
+          "name": "Pipe-offshore-pipeline-wirral-to-morecambe-bay-south-2",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -196,7 +196,7 @@
         },
         {
           "elem": "PipeSeg",
-          "name": "Pipe-offshore-pipline-wirral-to-morecambe-bay-south-3",
+          "name": "Pipe-offshore-pipeline-wirral-to-morecambe-bay-south-3",
           "elevation": 0,
           "length": 10000,
           "diameters": [0.6095999999999999],
@@ -205,10 +205,10 @@
           "roughness": 1
         }
       ],
-      "offshore-pipline-wirral-to-morecambe-bay-south-end": [
+      "offshore-pipeline-wirral-to-morecambe-bay-south-end": [
         {
           "elem": "Sink",
-          "name": "offshore-pipline-wirral-to-morecambe-bay-south-sink",
+          "name": "offshore-pipeline-wirral-to-morecambe-bay-south-sink",
           "elevation": 0,
           "pressure": 2000000
         }
@@ -279,39 +279,39 @@
     "subnets": {
       "emitter-1": {
         "subnetName": "emitter-1",
-        "downstreamSubnetName": "onshore-trunk-pipline",
+        "downstreamSubnetName": "onshore-trunk-pipeline",
         "componentSeriesMap": {
           "emitter-1-start": ["emitter-1-end"]
         }
       },
 
-      "onshore-trunk-pipline": {
-        "subnetName": "onshore-trunk-pipline",
+      "onshore-trunk-pipeline": {
+        "subnetName": "onshore-trunk-pipeline",
         "downstreamSubnetName": "agi",
         "componentSeriesMap": {
-          "onshore-trunk-pipline-start": ["onshore-trunk-pipline"],
-          "onshore-trunk-pipline": ["onshore-trunk-pipline-end"]
+          "onshore-trunk-pipeline-start": ["onshore-trunk-pipeline"],
+          "onshore-trunk-pipeline": ["onshore-trunk-pipeline-end"]
         }
       },
 
       "agi": {
         "subnetName": "agi",
-        "downstreamSubnetName": "offshore-pipline-wirral-to-morecambe-bay-south",
+        "downstreamSubnetName": "offshore-pipeline-wirral-to-morecambe-bay-south",
         "componentSeriesMap": {
           "agi-start": ["agi"],
           "agi": ["agi-end"]
         }
       },
 
-      "offshore-pipline-wirral-to-morecambe-bay-south": {
-        "subnetName": "offshore-pipline-wirral-to-morecambe-bay-south",
+      "offshore-pipeline-wirral-to-morecambe-bay-south": {
+        "subnetName": "offshore-pipeline-wirral-to-morecambe-bay-south",
         "downstreamSubnetName": "morecambe-bay-south-reservoir",
         "componentSeriesMap": {
-          "offshore-pipline-wirral-to-morecambe-bay-south-start": [
-            "offshore-pipline-wirral-to-morecambe-bay-south"
+          "offshore-pipeline-wirral-to-morecambe-bay-south-start": [
+            "offshore-pipeline-wirral-to-morecambe-bay-south"
           ],
-          "offshore-pipline-wirral-to-morecambe-bay-south": [
-            "offshore-pipline-wirral-to-morecambe-bay-south-end"
+          "offshore-pipeline-wirral-to-morecambe-bay-south": [
+            "offshore-pipeline-wirral-to-morecambe-bay-south-end"
           ]
         }
       },

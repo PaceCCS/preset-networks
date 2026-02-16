@@ -1,6 +1,6 @@
 type = "branch"
 
-label = "onshore-trunk-pipline"
+label = "onshore-trunk-pipeline"
 
 [position]
 x = 250
