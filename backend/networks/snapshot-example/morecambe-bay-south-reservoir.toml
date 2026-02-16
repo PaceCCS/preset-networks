@@ -9,6 +9,7 @@ y = 200
 [[block]]
 quantity = 1
 type = "Heater"
+label = "morecambe-bay-south-heater"
 outletTemperature = "25 C"
 pressureDelta = "-1 bar"
 isentropicEfficiency = 1

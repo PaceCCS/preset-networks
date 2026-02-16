@@ -226,7 +226,7 @@
         },
         {
           "elem": "Heater",
-          "name": "morecambe-bay-south-reservoir-heater",
+          "name": "morecambe-bay-south-heater",
           "elevation": 0,
           "outletTemperature": 298.15,
           "pressureDelta": -100000,
