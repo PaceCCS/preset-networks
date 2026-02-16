@@ -130,11 +130,10 @@ snapshotRoutes.post("/run", async (c) => {
       }
     }
 
-    // Build the scenario request with network structure and series
+    // Build the scenario request with network structure (includes series)
     const scenarioRequest: ScenarioRequest = {
       conditions,
       structure: transformResult.networkStructure,
-      series: transformResult.series,
       includeAllPipes: body.includeAllPipes,
     };
 
@@ -191,11 +190,10 @@ snapshotRoutes.post("/run", async (c) => {
     // Transform response to our format
     const result = transformScenarioResponse(scenarioResponse);
 
-    // Include validation info, network structure, and series in the response
+    // Include validation info and network structure (which contains series) in the response
     return c.json({
       ...result,
       networkStructure: transformResult.networkStructure,
-      series: transformResult.series,
       validation: transformResult.validation,
       _mock: usedMock,
     });
